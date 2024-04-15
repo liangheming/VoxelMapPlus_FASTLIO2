@@ -1,0 +1,5 @@
+lidar_topic: /livox/lidar
+imu_topic: /livox/imu
+
+map_frame: lidar
+body_frame: body
