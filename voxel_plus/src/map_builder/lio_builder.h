@@ -3,6 +3,7 @@
 #include "commons.h"
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/common/transforms.h>
+#include "voxel_map.h"
 
 namespace lio
 {
@@ -26,6 +27,16 @@ namespace lio
         Eigen::Matrix3d r_il = Eigen::Matrix3d::Identity();
         Eigen::Vector3d p_il = Eigen::Vector3d::Zero();
         bool gravity_align = true;
+        bool estimate_ext = false;
+
+        int max_layer = 2;
+        double voxel_size = 0.5;
+        std::vector<int> update_size_threshes = std::vector<int>{20, 10};
+        int max_point_thresh = 100;
+        double plane_thresh = 0.01;
+
+        double ranging_cov = 0.04;
+        double angle_cov = 0.1;
     };
     struct LIODataGroup
     {
@@ -37,6 +48,7 @@ namespace lio
         double last_cloud_end_time = 0.0;
         double gravity_norm;
         kf::Matrix12d Q = kf::Matrix12d::Identity();
+        std::vector<ResidualData> residual_info;
     };
 
     class LIOBuilder
@@ -52,6 +64,8 @@ namespace lio
 
         void process(SyncPackage &package);
 
+        void sharedUpdateFunc(kf::State &state, kf::SharedState &shared_state);
+
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr lidarToWorld(const pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud);
 
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr lidarToBody(const pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud);
@@ -63,6 +77,7 @@ namespace lio
         LIOStatus status = LIOStatus::IMU_INIT;
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr lidar_cloud;
         pcl::VoxelGrid<pcl::PointXYZINormal> scan_filter;
+        std::shared_ptr<VoxelMap> map;
     };
 
 } // namespace lio

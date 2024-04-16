@@ -29,7 +29,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: PointCloud2
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -96,7 +96,7 @@ Visualization Manager:
       Color Transformer: Intensity
       Decay Time: 1000
       Enabled: true
-      Invert Rainbow: false
+      Invert Rainbow: true
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
       Name: PointCloud2
@@ -156,8 +156,8 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz/Orbit
-      Distance: 31.886171340942383
+      Class: rviz/ThirdPersonFollower
+      Distance: 35.353294372558594
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -165,17 +165,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0
-        Y: 0
+        X: -0.790439248085022
+        Y: 5.28109073638916
         Z: 0
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.06979663670063019
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 2.1303999423980713
+      Yaw: 3.800395965576172
     Saved: ~
 Window Geometry:
   Displays:
