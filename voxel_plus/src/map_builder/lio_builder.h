@@ -30,7 +30,7 @@ namespace lio
         bool estimate_ext = false;
 
         int max_point_thresh = 100;
-        int update_point_thresh = 5;
+        int update_point_thresh = 10;
         double plane_thresh = 0.01;
 
         double ranging_cov = 0.04;
