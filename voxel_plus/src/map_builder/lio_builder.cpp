@@ -239,22 +239,20 @@ namespace lio
                          kf.P().block<3, 3>(kf::IESKF::P_ID, kf::IESKF::P_ID);
                 pv_list.push_back(pv);
             }
-            // auto time_start = std::chrono::high_resolution_clock::now();
             map->update(pv_list);
-            // auto time_end = std::chrono::high_resolution_clock::now();
-            // double duration = std::chrono::duration_cast<std::chrono::duration<double>>(time_end - time_start).count() * 1000;
-            // std::cout << " package.cloud " << package.cloud->size() << " lidar_cloud " << lidar_cloud->size() << std::endl;
-            // std::cout << "build duration: " << duration << std::endl;
-            // exit(0);
         }
     }
 
     void LIOBuilder::sharedUpdateFunc(kf::State &state, kf::SharedState &shared_state)
     {
-        auto time_start = std::chrono::high_resolution_clock::now();
         Eigen::Matrix3d r_wl = state.rot * state.rot_ext;
         Eigen::Vector3d p_wl = state.rot * state.pos_ext + state.pos;
         int size = lidar_cloud->size();
+
+#ifdef MP_EN
+        omp_set_num_threads(MP_PROC_NUM);
+#pragma omp parallel for
+#endif
         for (int i = 0; i < size; i++)
         {
             data_group.residual_info[i].is_valid = false;
@@ -275,9 +273,6 @@ namespace lio
         shared_state.b.setZero();
         int effect_num = 0;
         Eigen::Matrix<double, 1, 12> J;
-        auto time_end = std::chrono::high_resolution_clock::now();
-        double duration = std::chrono::duration_cast<std::chrono::duration<double>>(time_end - time_start).count() * 1000;
-        std::cout << "duration" << duration << std::endl;
 
         for (int i = 0; i < size; i++)
         {
@@ -297,11 +292,9 @@ namespace lio
                 J.block<1, 3>(0, 6) = -plane_norm.transpose() * r_wl * Sophus::SO3d::hat(data_group.residual_info[i].point_lidar);
                 J.block<1, 3>(0, 9) = plane_norm.transpose() * state.rot;
             }
-            // double r_info = point_world_homo.transpose() * data_group.residual_info[i].plane_cov * point_world_homo;
-            // r_info += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
-            // std::cout << r_info << std::endl;
-            // std::cout << data_group.residual_info[i].residual << std::endl;
-            // std::cout << "==================" << std::endl;
+            double r_info = point_world_homo.transpose() * data_group.residual_info[i].plane_cov * point_world_homo;
+            r_info += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
+            
             shared_state.H += J.transpose() * 100 * J;
             shared_state.b += J.transpose() * 100 * data_group.residual_info[i].residual;
         }
