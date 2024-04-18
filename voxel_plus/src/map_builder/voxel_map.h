@@ -5,12 +5,27 @@
 #include <memory>
 #include <unordered_map>
 #include <iostream>
+#include <chrono>
 
 #define HASH_P 116101
 #define MAX_N 10000000000
 
 namespace lio
 {
+    struct ResidualData
+    {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+        Eigen::Vector3d point_lidar;
+        Eigen::Vector3d point_world;
+        Eigen::Vector4d plane_param;
+        Eigen::Matrix4d plane_cov;
+
+        Eigen::Matrix3d cov_lidar;
+        Eigen::Matrix3d cov_world;
+        bool is_valid = false;
+        double residual = 0.0;
+    };
+
     class VoxelKey
     {
     public:
@@ -101,6 +116,8 @@ namespace lio
         void build(std::vector<PointWithCov> &pvs);
 
         void update(std::vector<PointWithCov> &pvs);
+
+        void buildResidual(ResidualData &info,UnionFindNode* node);
 
         ~VoxelMap();
 

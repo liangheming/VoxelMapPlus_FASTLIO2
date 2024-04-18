@@ -24,6 +24,66 @@ namespace lio
         temp_points.push_back(pv);
     }
 
+    void UnionFindNode::emplace(const PointWithCov &pv)
+    {
+        if (!isInitialized())
+        {
+            addToPlane(pv);
+            temp_points.push_back(pv);
+            newly_added_num += 1;
+            if (newly_added_num >= update_size_thresh)
+            {
+                updatePlane();
+                newly_added_num = 0;
+            }
+        }
+        else
+        {
+            if (isPlane())
+            {
+                if (update_enable)
+                {
+                    addToPlane(pv);
+                    temp_points.push_back(pv);
+                    newly_added_num++;
+                    if (newly_added_num >= update_size_thresh)
+                    {
+                        updatePlane();
+                        newly_added_num = 0;
+                    }
+                    if (temp_points.size() > max_point_thresh)
+                    {
+                        update_enable = false;
+                        std::vector<PointWithCov>().swap(temp_points);
+                    }
+                }
+                else
+                {
+                    // try merge
+                }
+            }
+            else
+            {
+                if (update_enable)
+                {
+                    addToPlane(pv);
+                    temp_points.push_back(pv);
+                    newly_added_num++;
+                    if (newly_added_num >= update_size_thresh)
+                    {
+                        updatePlane();
+                        newly_added_num = 0;
+                    }
+                    if (temp_points.size() > max_point_thresh)
+                    {
+                        update_enable = false;
+                        std::vector<PointWithCov>().swap(temp_points);
+                    }
+                }
+            }
+        }
+    }
+
     void UnionFindNode::addToPlane(const PointWithCov &pv)
     {
 
@@ -57,8 +117,11 @@ namespace lio
         Eigen::Vector3d evals = es.eigenvalues();
         double mean_eigen = evals.minCoeff();
         if (mean_eigen > plane_thesh)
+        {
+            plane->is_plane = false;
             return;
-
+        }
+        // auto time_start = std::chrono::high_resolution_clock::now();
         plane->is_plane = true;
         Eigen::Matrix4d mat;
         mat << plane->xx, plane->xy, plane->xz, plane->x,
@@ -103,7 +166,7 @@ namespace lio
                     z, 0.0, 0.0, 0.0,
                     1.0, 0.0, 0.0, 0.0;
                 dudp.col(0) += (eigen_vec.col(i) * eigen_vec.col(i).transpose() * dmatdx * eigen_vec.col(min_idx)) / (eigen_val(min_idx) - eigen_val(i));
-                
+
                 dmatdx.setZero();
                 dmatdx << 0.0, x, 0.0, 0.0,
                     x, 2 * y, z, 1.0,
@@ -118,12 +181,12 @@ namespace lio
                     0.0, 0.0, 1.0, 0.0;
                 dudp.col(2) += (eigen_vec.col(i) * eigen_vec.col(i).transpose() * dmatdx * eigen_vec.col(min_idx)) / (eigen_val(min_idx) - eigen_val(i));
             }
-            plane->plane_cov += derive_param * dudp * pv.cov * dudp.transpose() * derive_param.transpose();
-            
-            // make d>0.0;
-            if (plane->plane_param(3) < 0)
-                plane->plane_param = -plane->plane_param;
+            plane->plane_cov += dudp * pv.cov * dudp.transpose();
         }
+
+        plane->plane_cov = derive_param * plane->plane_cov * derive_param.transpose();
+        if (plane->plane_param(3) < 0)
+            plane->plane_param = -plane->plane_param;
 
         // std::cout << sq_p_norm << std::endl;
         // std::cout << "get_derive_param: " << temp_points.size() << std::endl;
@@ -166,6 +229,34 @@ namespace lio
         }
     }
 
+    void VoxelMap::update(std::vector<PointWithCov> &pvs)
+    {
+        for (PointWithCov &pv : pvs)
+        {
+            VoxelKey k = index(pv.point);
+            auto f_it = feat_map.find(k);
+            if (f_it == feat_map.end())
+            {
+                Eigen::Vector3d center(static_cast<double>(k.x) + 0.5, static_cast<double>(k.y) + 0.5, static_cast<double>(k.z) + 0.5);
+                center *= voxel_size;
+                feat_map[k] = new UnionFindNode(plane_thresh, update_size_thresh, max_point_thresh, center, this);
+            }
+            feat_map[k]->emplace(pv);
+        }
+    }
+
+    void VoxelMap::buildResidual(ResidualData &info, UnionFindNode *node)
+    {
+        info.is_valid = false;
+        if (node->isPlane())
+        {
+            info.residual = node->plane->plane_param.block<3, 1>(0, 0).dot(info.point_world) + node->plane->plane_param(3);
+            info.plane_param = node->plane->plane_param;
+            info.plane_cov = node->plane->plane_cov;
+            info.is_valid = true;
+        }
+    }
+
     VoxelMap::~VoxelMap()
     {
         if (feat_map.size() == 0)
@@ -174,7 +265,6 @@ namespace lio
         {
             delete it->second;
         }
-        FeatMap temp;
-        feat_map.swap(temp);
+        FeatMap().swap(feat_map);
     }
 } // namespace lio
