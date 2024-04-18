@@ -291,16 +291,15 @@ namespace lio
             }
             double r_info = point_world_homo.transpose() * data_group.residual_info[i].plane_cov * point_world_homo;
             r_info += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
-            
+            std::cout << 1.0 / r_info << std::endl;
             r_info = r_info < 0.001 ? 1000 : 1 / r_info;
-            // std::cout << r_info << std::endl;
 
             shared_state.H += J.transpose() * r_info * J;
             shared_state.b += J.transpose() * r_info * data_group.residual_info[i].residual;
         }
-        // std::cout << "================================" << std::endl;
         if (effect_num < 1)
             std::cout << "NO EFFECTIVE POINT";
+        std::cout << "===============" << effect_num << "=========" << size << "========" << std::endl;
     }
 
 }
