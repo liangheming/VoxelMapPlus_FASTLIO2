@@ -294,13 +294,13 @@ namespace lio
                 J.block<1, 3>(0, 6) = -plane_norm.transpose() * r_wl * Sophus::SO3d::hat(data_group.residual_info[i].point_lidar);
                 J.block<1, 3>(0, 9) = plane_norm.transpose() * state.rot;
             }
-            double r_info = point_world_homo.transpose() * data_group.residual_info[i].plane_cov * point_world_homo;
-            r_info += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
+            // double r_info = point_world_homo.transpose() * data_group.residual_info[i].plane_cov * point_world_homo;
+            // r_info += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
             // std::cout << r_info << std::endl;
             // std::cout << data_group.residual_info[i].residual << std::endl;
             // std::cout << "==================" << std::endl;
-            shared_state.H += J.transpose() * r_info * J;
-            shared_state.b += J.transpose() * r_info * data_group.residual_info[i].residual;
+            shared_state.H += J.transpose() * 100 * J;
+            shared_state.b += J.transpose() * 100 * data_group.residual_info[i].residual;
         }
         if (effect_num < 1)
             std::cout << "NO EFFECTIVE POINT";
