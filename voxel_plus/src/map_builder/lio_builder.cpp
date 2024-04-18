@@ -250,7 +250,7 @@ namespace lio
         Eigen::Vector3d p_wl = state.rot * state.pos_ext + state.pos;
 
         int size = lidar_cloud->size();
-        
+
 #ifdef MP_EN
         omp_set_num_threads(MP_PROC_NUM);
 #pragma omp parallel for
@@ -273,7 +273,7 @@ namespace lio
                 map->buildResidual(data_group.residual_info[i], iter->second.tree);
             }
         }
-        
+
         shared_state.H.setZero();
         shared_state.b.setZero();
         Eigen::Matrix<double, 1, 12> J;
@@ -290,7 +290,9 @@ namespace lio
             J_v.block<1, 3>(0, 3) = -data_group.residual_info[i].plane_norm.transpose();
             double r_cov = J_v * data_group.residual_info[i].plane_cov * J_v.transpose();
             r_cov += data_group.residual_info[i].plane_norm.transpose() * r_wl * data_group.residual_info[i].pcov * r_wl.transpose() * data_group.residual_info[i].plane_norm;
-            double r_info = r_cov < 0.0001 ? 1000 : 1 / r_cov;
+            // std::cout << 1.0 / r_cov << std::endl;
+            double r_info = r_cov < 0.001 ? 1000 : 1 / r_cov;
+            // double r_info = 1.0 / r_cov;
             assert(r_cov > 0.0);
             J.block<1, 3>(0, 0) = data_group.residual_info[i].plane_norm.transpose();
             J.block<1, 3>(0, 3) = -data_group.residual_info[i].plane_norm.transpose() * state.rot * Sophus::SO3d::hat(state.rot_ext * data_group.residual_info[i].point_lidar + state.pos_ext);
@@ -304,6 +306,7 @@ namespace lio
         }
         if (effect_num < 1)
             std::cout << "NO EFFECTIVE POINT";
+        // std::cout << "=============== " << effect_num << " ===========" << std::endl;
     }
 
 }
