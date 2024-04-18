@@ -115,7 +115,9 @@ namespace lio
         Eigen::Matrix3d cov = plane->ppt / static_cast<double>(plane->n) - plane->mean * plane->mean.transpose();
         Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(cov);
         Eigen::Vector3d evals = es.eigenvalues();
-        double mean_eigen = evals.minCoeff();
+        Eigen::Vector3d::Index min_es_idx;
+        double mean_eigen = evals.minCoeff(&min_es_idx);
+
         if (mean_eigen > plane_thesh)
         {
             plane->is_plane = false;
@@ -134,13 +136,14 @@ namespace lio
         Eigen::Vector4d eigen_val = pes.eigenvalues();
         Eigen::Vector4d::Index min_idx;
         eigen_val.minCoeff(&min_idx);
+
         Eigen::Vector4d p_param = eigen_vec.col(min_idx);
         double a = p_param(0), b = p_param(1), c = p_param(2), d = p_param(3);
         double p_norm = Eigen::Vector3d(p_param(0), p_param(1), p_param(2)).norm();
 
         double sq_p_norm = p_norm * p_norm;
         plane->plane_param = p_param / p_norm;
-        Eigen::Matrix4d mat_inv = eigen_vec * Eigen::Vector4d((eigen_val.array() > 1e-6).select(eigen_val.array().inverse(), 0)).asDiagonal() * eigen_vec.transpose();
+        // Eigen::Matrix4d mat_inv = eigen_vec * Eigen::Vector4d((eigen_val.array() > 1e-6).select(eigen_val.array().inverse(), 0)).asDiagonal() * eigen_vec.transpose();
 
         Eigen::Matrix4d derive_param;
 
@@ -183,8 +186,13 @@ namespace lio
             }
             plane->plane_cov += derive_param * dudp * pv.cov * dudp.transpose() * derive_param.transpose();
         }
+        
+        // std::cout << "min es evs: " << mean_eigen << " min pes evs: " << eigen_val(min_idx) <<std::endl;
+        // std::cout << "es norm " << es.eigenvectors().col(min_es_idx).transpose() <<std::endl;
+        // std::cout << "pes norm " << plane->plane_param.transpose() <<std::endl;
         if (plane->plane_param(3) < 0)
             plane->plane_param = -plane->plane_param;
+        
     }
 
     VoxelMap::VoxelMap(double _voxel_size, double _plane_thresh, int _update_size_thresh, int _max_point_thresh)
