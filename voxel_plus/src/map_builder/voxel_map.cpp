@@ -121,7 +121,7 @@ namespace lio
             plane->is_plane = false;
             return;
         }
-        
+
         plane->is_plane = true;
         Eigen::Matrix4d mat;
         mat << plane->xx, plane->xy, plane->xz, plane->x,
@@ -135,6 +135,10 @@ namespace lio
         Eigen::Vector4d::Index min_idx;
         eigen_val.minCoeff(&min_idx);
         Eigen::Vector4d p_param = eigen_vec.col(min_idx);
+        double p_norm = Eigen::Vector3d(p_param(0), p_param(1), p_param(2)).norm();
+        plane->plane_param = p_param / p_norm;
+
+
         // double a = p_param(0), b = p_param(1), c = p_param(2), d = p_param(3);
 
         // double p_norm = Eigen::Vector3d(p_param(0), p_param(1), p_param(2)).norm();

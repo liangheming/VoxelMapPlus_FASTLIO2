@@ -239,19 +239,19 @@ namespace lio
                          kf.P().block<3, 3>(kf::IESKF::P_ID, kf::IESKF::P_ID);
                 pv_list.push_back(pv);
             }
-            auto time_start = std::chrono::high_resolution_clock::now();
+            // auto time_start = std::chrono::high_resolution_clock::now();
             map->update(pv_list);
-            auto time_end = std::chrono::high_resolution_clock::now();
-            double duration = std::chrono::duration_cast<std::chrono::duration<double>>(time_end - time_start).count() * 1000;
-            std::cout << " package.cloud " << package.cloud->size() << " lidar_cloud " << lidar_cloud->size() << std::endl;
-            std::cout << "build duration: " << duration << std::endl;
+            // auto time_end = std::chrono::high_resolution_clock::now();
+            // double duration = std::chrono::duration_cast<std::chrono::duration<double>>(time_end - time_start).count() * 1000;
+            // std::cout << " package.cloud " << package.cloud->size() << " lidar_cloud " << lidar_cloud->size() << std::endl;
+            // std::cout << "build duration: " << duration << std::endl;
             // exit(0);
         }
     }
 
     void LIOBuilder::sharedUpdateFunc(kf::State &state, kf::SharedState &shared_state)
     {
-        // auto time_start = std::chrono::high_resolution_clock::now();
+        auto time_start = std::chrono::high_resolution_clock::now();
         Eigen::Matrix3d r_wl = state.rot * state.rot_ext;
         Eigen::Vector3d p_wl = state.rot * state.pos_ext + state.pos;
         int size = lidar_cloud->size();
@@ -275,6 +275,9 @@ namespace lio
         shared_state.b.setZero();
         int effect_num = 0;
         Eigen::Matrix<double, 1, 12> J;
+        auto time_end = std::chrono::high_resolution_clock::now();
+        double duration = std::chrono::duration_cast<std::chrono::duration<double>>(time_end - time_start).count() * 1000;
+        std::cout << "duration" << duration << std::endl;
 
         for (int i = 0; i < size; i++)
         {
@@ -304,9 +307,6 @@ namespace lio
         }
         if (effect_num < 1)
             std::cout << "NO EFFECTIVE POINT";
-        // auto time_end = std::chrono::high_resolution_clock::now();
-        // double duration = std::chrono::duration_cast<std::chrono::duration<double>>(time_end - time_start).count() * 1000;
-        // std::cout << "effect_num: " << effect_num << "duration" << duration << std::endl;
     }
 
 }
