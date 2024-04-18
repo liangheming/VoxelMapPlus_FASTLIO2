@@ -181,9 +181,8 @@ namespace lio
                     0.0, 0.0, 1.0, 0.0;
                 dudp.col(2) += (eigen_vec.col(i) * eigen_vec.col(i).transpose() * dmatdx * eigen_vec.col(min_idx)) / (eigen_val(min_idx) - eigen_val(i));
             }
-            plane->plane_cov += dudp * pv.cov * dudp.transpose();
+            plane->plane_cov += derive_param * dudp * pv.cov * dudp.transpose() * derive_param.transpose();
         }
-        plane->plane_cov = derive_param * plane->plane_cov * derive_param.transpose();
         if (plane->plane_param(3) < 0)
             plane->plane_param = -plane->plane_param;
     }

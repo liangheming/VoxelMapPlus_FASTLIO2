@@ -258,10 +258,6 @@ namespace lio
             data_group.residual_info[i].is_valid = false;
             data_group.residual_info[i].point_world = r_wl * data_group.residual_info[i].point_lidar + p_wl;
             Eigen::Matrix3d point_crossmat = Sophus::SO3d::hat(data_group.residual_info[i].point_lidar);
-
-            data_group.residual_info[i].cov_world = r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() +
-                                                    point_crossmat * kf.P().block<3, 3>(kf::IESKF::R_ID, kf::IESKF::R_ID) * point_crossmat.transpose() +
-                                                    kf.P().block<3, 3>(kf::IESKF::P_ID, kf::IESKF::P_ID);
             VoxelKey position = map->index(data_group.residual_info[i].point_world);
             auto iter = map->feat_map.find(position);
             if (iter != map->feat_map.end())
@@ -295,11 +291,13 @@ namespace lio
             double r_info = point_world_homo.transpose() * data_group.residual_info[i].plane_cov * point_world_homo;
             r_info += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
             
-            r_info = r_info < 0.0001 ? 1000 : 1 / r_info;
+            r_info = r_info < 0.001 ? 1000 : 1 / r_info;
+            // std::cout << r_info << std::endl;
 
             shared_state.H += J.transpose() * r_info * J;
             shared_state.b += J.transpose() * r_info * data_group.residual_info[i].residual;
         }
+        // std::cout << "================================" << std::endl;
         if (effect_num < 1)
             std::cout << "NO EFFECTIVE POINT";
     }
