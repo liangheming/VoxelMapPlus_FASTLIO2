@@ -12,7 +12,7 @@ namespace lio
         data_group.Q.block<3, 3>(9, 9) = Eigen::Matrix3d::Identity() * config.nba;
         if (config.scan_resolution > 0.0)
             scan_filter.setLeafSize(config.scan_resolution, config.scan_resolution, config.scan_resolution);
-        
+
         map = std::make_shared<VoxelMap>(config.voxel_size, config.max_layer, config.update_size_threshes, config.max_point_thresh, config.plane_thresh);
 
         lidar_cloud.reset(new pcl::PointCloud<pcl::PointXYZINormal>);
@@ -250,6 +250,7 @@ namespace lio
         Eigen::Vector3d p_wl = state.rot * state.pos_ext + state.pos;
 
         int size = lidar_cloud->size();
+        auto time_start = std::chrono::high_resolution_clock::now();
 #ifdef MP_EN
         omp_set_num_threads(MP_PROC_NUM);
 #pragma omp parallel for
@@ -272,6 +273,9 @@ namespace lio
                 map->buildResidual(data_group.residual_info[i], iter->second.tree);
             }
         }
+        auto time_end = std::chrono::high_resolution_clock::now();
+        double duration = std::chrono::duration_cast<std::chrono::duration<double>>(time_end - time_start).count() * 1000;
+        std::cout << "size: " << size << "duration: " << duration << std::endl;
         shared_state.H.setZero();
         shared_state.b.setZero();
         Eigen::Matrix<double, 1, 12> J;

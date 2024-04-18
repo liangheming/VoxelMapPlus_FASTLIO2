@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <Eigen/Eigen>
 #include <unordered_map>
+#include <chrono>
+
 #define HASH_P 116101
 #define MAX_N 10000000000
 
