@@ -225,7 +225,7 @@ namespace lio
                 calcBodyCov(data_group.residual_info[i].point_lidar, config.ranging_cov, config.angle_cov, data_group.residual_info[i].pcov);
             }
             kf.update();
-            pcl::PointCloud<pcl::PointXYZINormal>::Ptr point_world = lidarToWorld(package.cloud);
+            pcl::PointCloud<pcl::PointXYZINormal>::Ptr point_world = lidarToWorld(lidar_cloud);
             std::vector<PointWithCov> pv_list;
             Eigen::Matrix3d r_wl = kf.x().rot * kf.x().rot_ext;
             Eigen::Vector3d p_wl = kf.x().rot * kf.x().pos_ext + kf.x().pos;
@@ -250,7 +250,7 @@ namespace lio
         Eigen::Vector3d p_wl = state.rot * state.pos_ext + state.pos;
 
         int size = lidar_cloud->size();
-        auto time_start = std::chrono::high_resolution_clock::now();
+        
 #ifdef MP_EN
         omp_set_num_threads(MP_PROC_NUM);
 #pragma omp parallel for
@@ -273,9 +273,7 @@ namespace lio
                 map->buildResidual(data_group.residual_info[i], iter->second.tree);
             }
         }
-        auto time_end = std::chrono::high_resolution_clock::now();
-        double duration = std::chrono::duration_cast<std::chrono::duration<double>>(time_end - time_start).count() * 1000;
-        std::cout << "size: " << size << "duration: " << duration << std::endl;
+        
         shared_state.H.setZero();
         shared_state.b.setZero();
         Eigen::Matrix<double, 1, 12> J;
