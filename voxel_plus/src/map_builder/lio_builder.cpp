@@ -13,6 +13,7 @@ namespace lio
         if (config.scan_resolution > 0.0)
             scan_filter.setLeafSize(config.scan_resolution, config.scan_resolution, config.scan_resolution);
         lidar_cloud.reset(new pcl::PointCloud<pcl::PointXYZINormal>);
+        map = std::make_shared<VoxelMap>(config.map_resolution, config.plane_thresh, config.update_point_thresh, config.max_point_thresh);
         // kf.set_share_function(
         //     [this](kf::State &s, kf::SharedState &d)
         //     { sharedUpdateFunc(s, d); });
@@ -178,7 +179,27 @@ namespace lio
         {
             undistortCloud(package);
             pcl::PointCloud<pcl::PointXYZINormal>::Ptr point_world = lidarToWorld(package.cloud);
+            std::vector<PointWithCov> pv_list;
+            Eigen::Matrix3d r_wl = kf.x().rot * kf.x().rot_ext;
+            Eigen::Vector3d p_wl = kf.x().rot * kf.x().pos_ext + kf.x().pos;
+            for (size_t i = 0; i < point_world->size(); i++)
+            {
+                PointWithCov pv;
+                pv.point = Eigen::Vector3d(point_world->points[i].x, point_world->points[i].y, point_world->points[i].z);
+                Eigen::Vector3d point_body(package.cloud->points[i].x, package.cloud->points[i].y, package.cloud->points[i].z);
+                Eigen::Matrix3d point_cov;
+                calcBodyCov(point_body, config.ranging_cov, config.angle_cov, point_cov);
+                Eigen::Matrix3d point_crossmat = Sophus::SO3d::hat(point_body);
+
+                point_cov = r_wl * point_cov * r_wl.transpose() +
+                            point_crossmat * kf.P().block<3, 3>(kf::IESKF::R_ID, kf::IESKF::R_ID) * point_crossmat.transpose() +
+                            kf.P().block<3, 3>(kf::IESKF::P_ID, kf::IESKF::P_ID);
+                pv.cov = point_cov;
+                pv_list.push_back(pv);
+            }
+            map->build(pv_list);
             status = LIOStatus::LIO_MAPPING;
+            exit(0);
         }
         else
         {

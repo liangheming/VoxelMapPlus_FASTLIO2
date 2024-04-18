@@ -3,6 +3,7 @@
 #include "commons.h"
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/common/transforms.h>
+#include "voxel_map.h"
 
 namespace lio
 {
@@ -26,6 +27,13 @@ namespace lio
         Eigen::Matrix3d r_il = Eigen::Matrix3d::Identity();
         Eigen::Vector3d p_il = Eigen::Vector3d::Zero();
         bool gravity_align = true;
+
+        int max_point_thresh = 100;
+        int update_point_thresh = 10;
+        double plane_thresh = 0.01;
+
+        double ranging_cov = 0.04;
+        double angle_cov = 0.1;
     };
     struct LIODataGroup
     {
@@ -63,6 +71,7 @@ namespace lio
         LIOStatus status = LIOStatus::IMU_INIT;
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr lidar_cloud;
         pcl::VoxelGrid<pcl::PointXYZINormal> scan_filter;
+        std::shared_ptr<VoxelMap> map;
     };
 
 } // namespace lio
