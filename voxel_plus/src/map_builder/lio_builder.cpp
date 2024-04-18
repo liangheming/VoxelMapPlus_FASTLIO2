@@ -306,7 +306,7 @@ namespace lio
         }
         if (effect_num < 1)
             std::cout << "NO EFFECTIVE POINT";
-        // std::cout << "=============== " << effect_num << " ===========" << std::endl;
+        // std::cout << "=============== " << effect_num << " ===== "<<size<<" ======" << std::endl;
     }
 
 }
