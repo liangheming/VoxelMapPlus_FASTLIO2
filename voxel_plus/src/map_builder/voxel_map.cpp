@@ -186,13 +186,12 @@ namespace lio
             }
             plane->plane_cov += derive_param * dudp * pv.cov * dudp.transpose() * derive_param.transpose();
         }
-        
+
         // std::cout << "min es evs: " << mean_eigen << " min pes evs: " << eigen_val(min_idx) <<std::endl;
         // std::cout << "es norm " << es.eigenvectors().col(min_es_idx).transpose() <<std::endl;
         // std::cout << "pes norm " << plane->plane_param.transpose() <<std::endl;
         if (plane->plane_param(3) < 0)
             plane->plane_param = -plane->plane_param;
-        
     }
 
     VoxelMap::VoxelMap(double _voxel_size, double _plane_thresh, int _update_size_thresh, int _max_point_thresh)

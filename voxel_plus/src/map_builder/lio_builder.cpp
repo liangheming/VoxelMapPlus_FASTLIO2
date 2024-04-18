@@ -209,13 +209,10 @@ namespace lio
             {
                 scan_filter.setInputCloud(package.cloud);
                 scan_filter.filter(*lidar_cloud);
-                // std::cout << "down sample:  " << config.scan_resolution << std::endl;
-                // std::cout << "before: " << package.cloud->size() << " after: " << lidar_cloud->size() << std::endl;
             }
             else
             {
                 pcl::copyPointCloud(*package.cloud, *lidar_cloud);
-                // std::cout << "copy lidar " << std::endl;
             }
 
             int size = lidar_cloud->size();
@@ -294,7 +291,10 @@ namespace lio
             }
             double r_info = point_world_homo.transpose() * data_group.residual_info[i].plane_cov * point_world_homo;
             r_info += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
-            // std::cout << 1.0 / r_info << std::endl;
+
+            // if (1.0 / r_info > 1000)
+            //     continue;
+
             r_info = r_info < 0.001 ? 1000 : 1 / r_info;
 
             shared_state.H += J.transpose() * r_info * J;
@@ -302,7 +302,6 @@ namespace lio
         }
         if (effect_num < 1)
             std::cout << "NO EFFECTIVE POINT";
-        // std::cout << "===============" << effect_num << "=========" << size << "========" << std::endl;
     }
 
 }
