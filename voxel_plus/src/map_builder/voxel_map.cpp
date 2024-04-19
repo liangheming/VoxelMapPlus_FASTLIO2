@@ -16,7 +16,7 @@ namespace lio
         plane.is_valid = false;
         leaves.resize(8, nullptr);
     }
-    
+
     void OctoTree::insert(const std::vector<PointWithCov> &input_points)
     {
         if (!is_initialized)
@@ -306,6 +306,7 @@ namespace lio
             sigma_l += info.plane_norm.transpose() * info.cov * info.plane_norm;
             if (dis_to_plane < info.sigma_num * sqrt(sigma_l))
             {
+                // std::cout << "filtered" << std::endl;
                 info.is_valid = true;
             }
         }
