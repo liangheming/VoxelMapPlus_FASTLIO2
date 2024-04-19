@@ -17,9 +17,8 @@ namespace lio
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         Eigen::Vector3d point_lidar;
         Eigen::Vector3d point_world;
-        Eigen::Vector4d plane_param;
-        Eigen::Matrix4d plane_cov;
-
+        Eigen::Vector3d plane_mean;
+        Eigen::Vector3d plane_norm;
         Eigen::Matrix3d cov_lidar;
         Eigen::Matrix3d cov_world;
         bool is_valid = false;
@@ -60,21 +59,22 @@ namespace lio
         bool is_init = false;
         bool is_root_plane = true;
 
-        double xx = 0.0;
-        double yy = 0.0;
-        double zz = 0.0;
-        double xy = 0.0;
-        double xz = 0.0;
-        double yz = 0.0;
-        double x = 0.0;
-        double y = 0.0;
-        double z = 0.0;
+        // double xx = 0.0;
+        // double yy = 0.0;
+        // double zz = 0.0;
+        // double xy = 0.0;
+        // double xz = 0.0;
+        // double yz = 0.0;
+        // double x = 0.0;
+        // double y = 0.0;
+        // double z = 0.0;
         int n = 0;
 
         Eigen::Vector3d mean = Eigen::Vector3d::Zero();
         Eigen::Matrix3d ppt = Eigen::Matrix3d::Zero();
-        Eigen::Matrix4d plane_cov = Eigen::Matrix4d::Zero();
-        Eigen::Vector4d plane_param = Eigen::Vector4d::Zero();
+        Eigen::Vector3d norm_vec = Eigen::Vector3d::Zero();
+        // Eigen::Matrix4d plane_cov = Eigen::Matrix4d::Zero();
+        // Eigen::Vector4d plane_param = Eigen::Vector4d::Zero();
     };
 
     class VoxelMap;

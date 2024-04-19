@@ -10,7 +10,6 @@ namespace lio
           voxel_center(_voxel_center),
           map(_map)
     {
-        // total_point_num = 0;
         newly_added_num = 0;
         update_enable = true;
         plane = std::make_shared<Plane>();
@@ -85,19 +84,19 @@ namespace lio
 
         plane->mean = plane->mean + (pv.point - plane->mean) / (plane->n + 1.0);
         plane->ppt += pv.point * pv.point.transpose();
-        double x = pv.point.x(), y = pv.point.y(), z = pv.point.z();
+        // double x = pv.point.x(), y = pv.point.y(), z = pv.point.z();
 
-        plane->x += x;
-        plane->y += y;
-        plane->z += z;
+        // plane->x += x;
+        // plane->y += y;
+        // plane->z += z;
 
-        plane->xx += (x * x);
-        plane->yy += (y * y);
-        plane->zz += (z * z);
+        // plane->xx += (x * x);
+        // plane->yy += (y * y);
+        // plane->zz += (z * z);
 
-        plane->xy += (x * y);
-        plane->xz += (x * z);
-        plane->yz += (y * z);
+        // plane->xy += (x * y);
+        // plane->xz += (x * z);
+        // plane->yz += (y * z);
 
         plane->n += 1;
     }
@@ -108,76 +107,50 @@ namespace lio
         if (plane->n < update_size_thresh)
             return;
         plane->is_init = true;
-        Eigen::Matrix4d mat;
-        mat << plane->xx, plane->xy, plane->xz, plane->x,
-            plane->xy, plane->yy, plane->yz, plane->y,
-            plane->xz, plane->yz, plane->zz, plane->z,
-            plane->x, plane->y, plane->z, static_cast<double>(plane->n);
 
-        Eigen::SelfAdjointEigenSolver<Eigen::Matrix4d> pes(mat);
-        Eigen::Matrix4d eigen_vec = pes.eigenvectors();
-        Eigen::Vector4d eigen_val = pes.eigenvalues();
+        Eigen::Matrix3d cov = plane->ppt / static_cast<double>(plane->n) - plane->mean * plane->mean.transpose();
+        
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(cov);
 
-        double min_eigen = eigen_val(0);
+        Eigen::Vector3d eigen_vals = es.eigenvalues();
+        Eigen::Matrix3d eigen_vecs = es.eigenvectors();
 
-        if (min_eigen > plane_thesh)
+        if (eigen_vals(0) > plane_thesh)
         {
             plane->is_plane = false;
             return;
         }
-        
         plane->is_plane = true;
-        Eigen::Vector4d p_param = eigen_vec.col(0);
-        double a = p_param(0), b = p_param(1), c = p_param(2), d = p_param(3);
-        double p_norm = Eigen::Vector3d(p_param(0), p_param(1), p_param(2)).norm();
+        plane->norm_vec = eigen_vecs.col(0);
 
-        double sq_p_norm = p_norm * p_norm;
-        plane->plane_param = p_param / p_norm;
-        // Eigen::Matrix4d mat_inv = eigen_vec * Eigen::Vector4d((eigen_val.array() > 1e-6).select(eigen_val.array().inverse(), 0)).asDiagonal() * eigen_vec.transpose();
+        // Eigen::Matrix4d mat;
+        // mat << plane->xx, plane->xy, plane->xz, plane->x,
+        //     plane->xy, plane->yy, plane->yz, plane->y,
+        //     plane->xz, plane->yz, plane->zz, plane->z,
+        //     plane->x, plane->y, plane->z, static_cast<double>(plane->n);
 
-        Eigen::Matrix4d derive_param;
+        // Eigen::SelfAdjointEigenSolver<Eigen::Matrix4d> pes(mat);
+        // Eigen::Matrix4d eigen_vec = pes.eigenvectors();
+        // Eigen::Vector4d eigen_val = pes.eigenvalues();
 
-        derive_param << p_norm - a * a / p_norm, -a * b / p_norm, -a * c / p_norm, 0.0,
-            -a * b / p_norm, p_norm - b * b / p_norm, -a * c / p_norm, 0.0,
-            -a * c / p_norm, -b * c / p_norm, p_norm - c * c / p_norm, 0.0,
-            -a * d / p_norm, -b * d / p_norm, -c * d / p_norm, p_norm;
-        derive_param /= sq_p_norm;
+        // double min_eigen = eigen_val(0);
 
-        plane->plane_cov.setZero();
+        // if (min_eigen > plane_thesh)
+        // {
+        //     plane->is_plane = false;
+        //     return;
+        // }
 
-        for (PointWithCov &pv : temp_points)
-        {
-            double x = pv.point(0), y = pv.point(1), z = pv.point(2);
-            Eigen::Matrix<double, 4, 3> dudp = Eigen::Matrix<double, 4, 3>::Zero();
-            for (int i = 1; i < 4; i++)
-            {
+        // plane->is_plane = true;
+        // Eigen::Vector4d p_param = eigen_vec.col(0);
+        // double a = p_param(0), b = p_param(1), c = p_param(2), d = p_param(3);
+        // double p_norm = Eigen::Vector3d(p_param(0), p_param(1), p_param(2)).norm();
 
-                Eigen::Matrix4d dmatdx;
-                dmatdx << 2 * x, y, z, 1.0,
-                    y, 0.0, 0.0, 0.0,
-                    z, 0.0, 0.0, 0.0,
-                    1.0, 0.0, 0.0, 0.0;
-                dudp.col(0) += (eigen_vec.col(i) * eigen_vec.col(i).transpose() * dmatdx * eigen_vec.col(0)) / (eigen_val(0) - eigen_val(i));
+        // double sq_p_norm = p_norm * p_norm;
+        // plane->plane_param = p_param / p_norm;
 
-                dmatdx.setZero();
-                dmatdx << 0.0, x, 0.0, 0.0,
-                    x, 2 * y, z, 1.0,
-                    0.0, z, 0.0, 0.0,
-                    0.0, 1.0, 0.0, 0.0;
-                dudp.col(1) += (eigen_vec.col(i) * eigen_vec.col(i).transpose() * dmatdx * eigen_vec.col(0)) / (eigen_val(0) - eigen_val(i));
-
-                dmatdx.setZero();
-                dmatdx << 0.0, 0.0, x, 0.0,
-                    0.0, 0.0, y, 0.0,
-                    x, y, 2 * z, 1.0,
-                    0.0, 0.0, 1.0, 0.0;
-                dudp.col(2) += (eigen_vec.col(i) * eigen_vec.col(i).transpose() * dmatdx * eigen_vec.col(0)) / (eigen_val(0) - eigen_val(i));
-            }
-            plane->plane_cov += derive_param * dudp * pv.cov * dudp.transpose() * derive_param.transpose();
-        }
-
-        if (plane->plane_param(3) < 0)
-            plane->plane_param = -plane->plane_param;
+        // if (plane->plane_param(3) < 0)
+        //     plane->plane_param = -plane->plane_param;
     }
 
     VoxelMap::VoxelMap(double _voxel_size, double _plane_thresh, int _update_size_thresh, int _max_point_thresh)
@@ -235,10 +208,10 @@ namespace lio
         info.is_valid = false;
         if (node->isPlane())
         {
-            info.residual = node->plane->plane_param.block<3, 1>(0, 0).dot(info.point_world) + node->plane->plane_param(3);
-            info.plane_param = node->plane->plane_param;
-            info.plane_cov = node->plane->plane_cov;
             info.is_valid = true;
+            info.residual = node->plane->norm_vec.dot(info.point_world - node->plane->mean);
+            info.plane_mean = node->plane->mean;
+            info.plane_norm = node->plane->norm_vec;
         }
     }
 

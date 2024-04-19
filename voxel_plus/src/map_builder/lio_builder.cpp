@@ -257,7 +257,6 @@ namespace lio
         {
             data_group.residual_info[i].is_valid = false;
             data_group.residual_info[i].point_world = r_wl * data_group.residual_info[i].point_lidar + p_wl;
-            // Eigen::Matrix3d point_crossmat = Sophus::SO3d::hat(data_group.residual_info[i].point_lidar);
             VoxelKey position = map->index(data_group.residual_info[i].point_world);
             auto iter = map->feat_map.find(position);
             if (iter != map->feat_map.end())
@@ -276,24 +275,15 @@ namespace lio
                 continue;
             effect_num++;
             J.setZero();
-            Eigen::Vector3d plane_norm = data_group.residual_info[i].plane_param.block<3, 1>(0, 0);
-            Eigen::Vector4d point_world_homo(data_group.residual_info[i].point_world(0),
-                                             data_group.residual_info[i].point_world(1),
-                                             data_group.residual_info[i].point_world(2),
-                                             1.0);
-            J.block<1, 3>(0, 0) = plane_norm.transpose();
+            Eigen::Vector3d plane_norm = data_group.residual_info[i].plane_norm.transpose();
+            J.block<1, 3>(0, 0) = plane_norm;
             J.block<1, 3>(0, 3) = -plane_norm.transpose() * state.rot * Sophus::SO3d::hat(state.rot_ext * data_group.residual_info[i].point_lidar + state.pos_ext);
             if (config.estimate_ext)
             {
                 J.block<1, 3>(0, 6) = -plane_norm.transpose() * r_wl * Sophus::SO3d::hat(data_group.residual_info[i].point_lidar);
                 J.block<1, 3>(0, 9) = plane_norm.transpose() * state.rot;
             }
-            double cov = point_world_homo.transpose() * data_group.residual_info[i].plane_cov * point_world_homo;
-            cov += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
-
-            // r_info = r_info < 0.01 ? 100 : 1 / r_info;
-
-            double r_info = cov < 0.001 ? 1000 : 1.0 / cov;
+            double r_info = 1000;
 
             shared_state.H += J.transpose() * r_info * J;
             shared_state.b += J.transpose() * r_info * data_group.residual_info[i].residual;
