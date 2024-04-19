@@ -292,10 +292,8 @@ namespace lio
             double r_info = point_world_homo.transpose() * data_group.residual_info[i].plane_cov * point_world_homo;
             r_info += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
 
-            // if (1.0 / r_info > 1000)
-            //     continue;
-
-            r_info = r_info < 0.001 ? 1000 : 1 / r_info;
+            // r_info = r_info < 0.001 ? 1000 : 1 / r_info;
+            r_info = 1000;
 
             shared_state.H += J.transpose() * r_info * J;
             shared_state.b += J.transpose() * r_info * data_group.residual_info[i].residual;
