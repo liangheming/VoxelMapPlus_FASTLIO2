@@ -21,6 +21,7 @@ namespace lio
         Eigen::Vector3d plane_norm;
         Eigen::Matrix3d cov_lidar;
         Eigen::Matrix3d cov_world;
+        Eigen::Matrix<double, 6, 6> plane_cov;
         bool is_valid = false;
         double residual = 0.0;
     };
@@ -73,8 +74,8 @@ namespace lio
         Eigen::Vector3d mean = Eigen::Vector3d::Zero();
         Eigen::Matrix3d ppt = Eigen::Matrix3d::Zero();
         Eigen::Vector3d norm_vec = Eigen::Vector3d::Zero();
-        // Eigen::Matrix4d plane_cov = Eigen::Matrix4d::Zero();
-        // Eigen::Vector4d plane_param = Eigen::Vector4d::Zero();
+
+        Eigen::Matrix<double, 6, 6> plane_cov = Eigen::Matrix<double, 6, 6>::Zero();
     };
 
     class VoxelMap;
@@ -117,7 +118,7 @@ namespace lio
 
         void update(std::vector<PointWithCov> &pvs);
 
-        void buildResidual(ResidualData &info,UnionFindNode* node);
+        void buildResidual(ResidualData &info, UnionFindNode *node);
 
         ~VoxelMap();
 
