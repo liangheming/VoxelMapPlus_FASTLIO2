@@ -31,7 +31,7 @@ namespace lio
 
         int max_point_thresh = 100;
         int update_point_thresh = 10;
-        double plane_thresh = 0.01;
+        double plane_thresh = 0.0001;
 
         double ranging_cov = 0.04;
         double angle_cov = 0.1;
