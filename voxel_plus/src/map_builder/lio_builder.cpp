@@ -292,6 +292,12 @@ namespace lio
             double r_info = point_world_homo.transpose() * data_group.residual_info[i].plane_cov * point_world_homo;
             r_info += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
 
+            if (1.0 / r_info > 1000)
+            {
+                std::cout << data_group.residual_info[i].residual << std::endl;
+                std::cout << data_group.residual_info[i].plane_param.transpose() << std::endl;
+                std::cout << data_group.residual_info[i].plane_cov.trace() <<std::endl;
+            }
             // if (1.0 / r_info > 1000)
             //     continue;
 
