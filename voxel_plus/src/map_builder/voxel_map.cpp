@@ -89,20 +89,6 @@ namespace lio
 
         plane->mean = plane->mean + (pv.point - plane->mean) / (plane->n + 1.0);
         plane->ppt += pv.point * pv.point.transpose();
-        double x = pv.point.x(), y = pv.point.y(), z = pv.point.z();
-
-        plane->x += x;
-        plane->y += y;
-        plane->z += z;
-
-        plane->xx += (x * x);
-        plane->yy += (y * y);
-        plane->zz += (z * z);
-
-        plane->xy += (x * y);
-        plane->xz += (x * z);
-        plane->yz += (y * z);
-
         plane->n += 1;
     }
 
@@ -126,70 +112,7 @@ namespace lio
 
         plane->is_plane = true;
         Eigen::Matrix4d mat;
-        mat << plane->xx, plane->xy, plane->xz, plane->x,
-            plane->xy, plane->yy, plane->yz, plane->y,
-            plane->xz, plane->yz, plane->zz, plane->z,
-            plane->x, plane->y, plane->z, static_cast<double>(plane->n);
-
-        Eigen::SelfAdjointEigenSolver<Eigen::Matrix4d> pes(mat);
-        Eigen::Matrix4d eigen_vec = pes.eigenvectors();
-        Eigen::Vector4d eigen_val = pes.eigenvalues();
-        Eigen::Vector4d::Index min_idx;
-        eigen_val.minCoeff(&min_idx);
-
-        Eigen::Vector4d p_param = eigen_vec.col(min_idx);
-        double a = p_param(0), b = p_param(1), c = p_param(2), d = p_param(3);
-        double p_norm = Eigen::Vector3d(p_param(0), p_param(1), p_param(2)).norm();
-
-        double sq_p_norm = p_norm * p_norm;
-        plane->plane_param = p_param / p_norm;
-        // Eigen::Matrix4d mat_inv = eigen_vec * Eigen::Vector4d((eigen_val.array() > 1e-6).select(eigen_val.array().inverse(), 0)).asDiagonal() * eigen_vec.transpose();
-
-        Eigen::Matrix4d derive_param;
-
-        derive_param << p_norm - a * a / p_norm, -a * b / p_norm, -a * c / p_norm, 0.0,
-            -a * b / p_norm, p_norm - b * b / p_norm, -a * c / p_norm, 0.0,
-            -a * c / p_norm, -b * c / p_norm, p_norm - c * c / p_norm, 0.0,
-            -a * d / p_norm, -b * d / p_norm, -c * d / p_norm, p_norm;
-        derive_param /= sq_p_norm;
-
-        plane->plane_cov.setZero();
-
-        for (PointWithCov &pv : temp_points)
-        {
-            double x = pv.point(0), y = pv.point(1), z = pv.point(2);
-            Eigen::Matrix<double, 4, 3> dudp = Eigen::Matrix<double, 4, 3>::Zero();
-            for (int i = 0; i < 4; i++)
-            {
-                if (static_cast<int>(min_idx) == i)
-                    continue;
-                Eigen::Matrix4d dmatdx;
-                dmatdx << 2 * x, y, z, 1.0,
-                    y, 0.0, 0.0, 0.0,
-                    z, 0.0, 0.0, 0.0,
-                    1.0, 0.0, 0.0, 0.0;
-                dudp.col(0) += (eigen_vec.col(i) * eigen_vec.col(i).transpose() * dmatdx * eigen_vec.col(min_idx)) / (eigen_val(min_idx) - eigen_val(i));
-
-                dmatdx.setZero();
-                dmatdx << 0.0, x, 0.0, 0.0,
-                    x, 2 * y, z, 1.0,
-                    0.0, z, 0.0, 0.0,
-                    0.0, 1.0, 0.0, 0.0;
-                dudp.col(1) += (eigen_vec.col(i) * eigen_vec.col(i).transpose() * dmatdx * eigen_vec.col(min_idx)) / (eigen_val(min_idx) - eigen_val(i));
-
-                dmatdx.setZero();
-                dmatdx << 0.0, 0.0, x, 0.0,
-                    0.0, 0.0, y, 0.0,
-                    x, y, 2 * z, 1.0,
-                    0.0, 0.0, 1.0, 0.0;
-                dudp.col(2) += (eigen_vec.col(i) * eigen_vec.col(i).transpose() * dmatdx * eigen_vec.col(min_idx)) / (eigen_val(min_idx) - eigen_val(i));
-            }
-            plane->plane_cov += derive_param * dudp * pv.cov * dudp.transpose() * derive_param.transpose();
-        }
-
-        // std::cout << "min es evs: " << mean_eigen << " min pes evs: " << eigen_val(min_idx) <<std::endl;
-        // std::cout << "es norm " << es.eigenvectors().col(min_es_idx).transpose() <<std::endl;
-        // std::cout << "pes norm " << plane->plane_param.transpose() <<std::endl;
+       
         if (plane->plane_param(3) < 0)
             plane->plane_param = -plane->plane_param;
     }

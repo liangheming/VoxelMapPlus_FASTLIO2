@@ -59,16 +59,6 @@ namespace lio
         bool is_plane = false;
         bool is_init = false;
         bool is_root_plane = true;
-
-        double xx = 0.0;
-        double yy = 0.0;
-        double zz = 0.0;
-        double xy = 0.0;
-        double xz = 0.0;
-        double yz = 0.0;
-        double x = 0.0;
-        double y = 0.0;
-        double z = 0.0;
         int n = 0;
 
         Eigen::Vector3d mean = Eigen::Vector3d::Zero();
@@ -96,7 +86,6 @@ namespace lio
         std::shared_ptr<Plane> plane;
         std::vector<PointWithCov> temp_points;
         Eigen::Vector3d voxel_center;
-        // int total_point_num;
         int newly_added_num;
         int update_size_thresh;
         int max_point_thresh;
