@@ -272,7 +272,6 @@ namespace lio
                         // iter->second->plane.reset();
                     }
                 }
-
                 map->buildResidual(data_group.residual_info[i], currentRootNode);
             }
         }

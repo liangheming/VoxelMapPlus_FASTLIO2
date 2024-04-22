@@ -25,6 +25,7 @@ namespace lio
         addToPlane(pv);
         temp_points.push_back(pv);
     }
+    
     void UnionFindNode::merge()
     {
         std::vector<VoxelKey> near;
@@ -45,48 +46,49 @@ namespace lio
                 UnionFindNode *neighRealRootNode = it->second;
                 while (neighRealRootNode != neighRealRootNode->root_node)
                     neighRealRootNode = neighRealRootNode->root_node;
-                if (neighRealRootNode == nowRealRootNode || neighRealRootNode->update_enable || !neighRealRootNode->isPlane())
+                if (neighRealRootNode == nowRealRootNode || neighRealRootNode->update_enable || !neighRealRootNode->is_plane)
                 {
                     continue;
                 }
-                std::shared_ptr<Plane> neighbor_plane = neighRealRootNode->plane;
+                // std::shared_ptr<Plane> neighbor_plane = neighRealRootNode->plane;
                 std::shared_ptr<Plane> now_plane = nowRealRootNode->plane;
-                double norm_distance = 1.0 - neighbor_plane->norm.dot(now_plane->norm);
-                double axis_distance = std::abs(neighbor_plane->axis_distance - now_plane->axis_distance);
+                double norm_distance = 1.0 - neighRealRootNode->plane->norm.dot(now_plane->norm);
+                double axis_distance = std::abs(neighRealRootNode->plane->axis_distance - now_plane->axis_distance);
                 if (norm_distance > merge_angle_thresh || axis_distance > merge_distance_thresh)
                     continue;
                 double norm_trace_0, norm_trace_1, mean_trace_0, mean_trace_1, cov_trace_0, cov_trace_1;
                 norm_trace_0 = now_plane->plane_cov.block<3, 3>(0, 0).trace();
                 mean_trace_0 = now_plane->plane_cov.block<3, 3>(3, 3).trace();
 
-                norm_trace_1 = neighbor_plane->plane_cov.block<3, 3>(0, 0).trace();
-                mean_trace_1 = neighbor_plane->plane_cov.block<3, 3>(3, 3).trace();
+                norm_trace_1 = neighRealRootNode->plane->plane_cov.block<3, 3>(0, 0).trace();
+                mean_trace_1 = neighRealRootNode->plane->plane_cov.block<3, 3>(3, 3).trace();
 
                 cov_trace_0 = norm_trace_0 + mean_trace_0;
                 cov_trace_1 = norm_trace_1 + mean_trace_1;
 
-                Eigen::Vector3d new_mean = (mean_trace_0 * neighbor_plane->mean + mean_trace_1 * now_plane->mean) / (mean_trace_0 + mean_trace_1);
-                Eigen::Vector3d new_norm = (norm_trace_0 * neighbor_plane->norm + norm_trace_1 * now_plane->norm) / (norm_trace_0 + norm_trace_1);
-                Eigen::Matrix<double, 6, 6> new_cov = (cov_trace_0 * cov_trace_0 * neighbor_plane->plane_cov + cov_trace_1 * cov_trace_1 * now_plane->plane_cov) / (cov_trace_0 * cov_trace_0 + cov_trace_1 * cov_trace_1);
+                Eigen::Vector3d new_mean = (mean_trace_0 * neighRealRootNode->plane->mean + mean_trace_1 * now_plane->mean) / (mean_trace_0 + mean_trace_1);
+                Eigen::Vector3d new_norm = (norm_trace_0 * neighRealRootNode->plane->norm + norm_trace_1 * now_plane->norm) / (norm_trace_0 + norm_trace_1);
+                Eigen::Matrix<double, 6, 6> new_cov = (cov_trace_0 * cov_trace_0 * neighRealRootNode->plane->plane_cov + cov_trace_1 * cov_trace_1 * now_plane->plane_cov) / (cov_trace_0 * cov_trace_0 + cov_trace_1 * cov_trace_1);
                 double new_axis_distance = new_mean.dot(new_norm);
                 if (new_axis_distance < 0)
                 {
                     new_axis_distance = -new_axis_distance;
                     new_norm = -new_norm;
                 }
-                neighbor_plane->is_root_plane = false;
+
                 neighRealRootNode->root_node = nowRealRootNode;
                 now_plane->mean = new_mean;
                 now_plane->norm = new_norm;
                 now_plane->plane_cov = new_cov;
                 now_plane->axis_distance = new_axis_distance;
+                neighRealRootNode->plane.reset();
             }
         }
     }
 
     void UnionFindNode::emplace(const PointWithCov &pv)
     {
-        if (!isInitialized())
+        if (!is_init)
         {
             addToPlane(pv);
             temp_points.push_back(pv);
@@ -99,7 +101,7 @@ namespace lio
         }
         else
         {
-            if (isPlane())
+            if (is_plane)
             {
                 if (update_enable)
                 {
@@ -157,7 +159,7 @@ namespace lio
         assert(temp_points.size() == plane->n);
         if (plane->n < update_size_thresh)
             return;
-        plane->is_init = true;
+        is_init = true;
         Eigen::Matrix3d cov = plane->ppt / static_cast<double>(plane->n) - plane->mean * plane->mean.transpose();
         Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(cov);
         Eigen::Matrix3d evecs = es.eigenvectors();
@@ -165,10 +167,10 @@ namespace lio
 
         if (evals(0) > plane_thesh)
         {
-            plane->is_plane = false;
+            is_plane = false;
             return;
         }
-        plane->is_plane = true;
+        is_plane = true;
         plane->norm = evecs.col(0);
         Eigen::Matrix3d J_Q = Eigen::Matrix3d::Identity() / static_cast<double>(plane->n);
 
@@ -247,7 +249,7 @@ namespace lio
     void VoxelMap::buildResidual(ResidualData &info, UnionFindNode *node)
     {
         info.is_valid = false;
-        if (node->isPlane())
+        if (node->is_plane)
         {
             Eigen::Vector3d p_world_to_center = info.point_world - node->plane->mean;
             info.plane_mean = node->plane->mean;

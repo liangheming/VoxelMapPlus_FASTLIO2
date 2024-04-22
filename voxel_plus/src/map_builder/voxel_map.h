@@ -57,12 +57,8 @@ namespace lio
 
     struct Plane
     {
-        bool is_plane = false;
-        bool is_init = false;
-        bool is_root_plane = true;
         int n = 0;
         double axis_distance = 0.0;
-
         Eigen::Matrix3d ppt = Eigen::Matrix3d::Zero();
         Eigen::Vector3d mean = Eigen::Vector3d::Zero();
         Eigen::Vector3d norm = Eigen::Vector3d::Zero();
@@ -79,8 +75,6 @@ namespace lio
         void addToPlane(const PointWithCov &pv);
         void push(const PointWithCov &pv);
         void emplace(const PointWithCov &pv);
-        bool isPlane() { return plane->is_plane; }
-        bool isInitialized() { return plane->is_init; }
         void merge();
 
     public:
@@ -94,6 +88,8 @@ namespace lio
         int max_point_thresh;
         bool update_enable;
         double plane_thesh;
+        bool is_init;
+        bool is_plane;
         VoxelKey position;
         static double  merge_angle_thresh;
         static double merge_distance_thresh;

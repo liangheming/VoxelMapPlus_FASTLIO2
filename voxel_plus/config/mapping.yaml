@@ -5,7 +5,7 @@ map_frame: lidar
 body_frame: body
 
 scan_resolution: 0.1
-map_resolution: 0.5
+map_resolution: 0.25
 max_point_thresh: 100
 update_point_thresh: 10
 estimate_ext: false
