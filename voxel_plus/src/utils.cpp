@@ -141,3 +141,80 @@ void calcVectQuation(const Eigen::Vector3d &x_vec, const Eigen::Vector3d &y_vec,
     q.y = eq.y();
     q.z = eq.z();
 }
+
+void calcVectQuation(const Eigen::Vector3d &norm_vec, geometry_msgs::Quaternion &q)
+{
+    double a = norm_vec(0);
+    double b = norm_vec(1);
+    double c = norm_vec(2);
+    double theta_half = acos(c) / 2;
+    double t2 = sqrt(a * a + b * b);
+    b = b / t2;
+    a = a / t2;
+    q.w = cos(theta_half);
+    q.x = b * sin(theta_half);
+    q.y = -1 * a * sin(theta_half);
+    q.z = 0.0;
+}
+
+visualization_msgs::MarkerArray voxel2MarkerArray(std::shared_ptr<lio::VoxelMap> map, const std::string &frame_id, const double &timestamp, int max_capacity)
+{
+
+    visualization_msgs::MarkerArray voxel_plane;
+    int size = std::min(static_cast<int>(map->feat_map.size()), max_capacity);
+    assert(size > 0);
+    voxel_plane.markers.reserve(size);
+    int idx = 0;
+    for (auto &kv : map->feat_map)
+    {
+        if (!kv.second->is_plane)
+            continue;
+        lio::UnionFindNode *node = kv.second;
+        Eigen::Vector3d voxel_center = node->voxel_center;
+        bool merged = false;
+        if (node != node->root_node)
+            merged = true;
+
+        while (node != node->root_node)
+            node = node->root_node;
+
+        double trace = node->plane->plane_cov.block<3, 3>(0, 0).diagonal().sum();
+        if (trace >= 0.25)
+            trace = 0.25;
+        trace = trace * (1.0 / 0.25);
+        trace = pow(trace, 0.2);
+        uint8_t r, g, b;
+        mapJet(trace, 0, 1, r, g, b);
+        Eigen::Vector3d plane_rgb(r / 256.0, g / 256.0, b / 256.0);
+        double alpha = 0.8;
+
+        visualization_msgs::Marker plane;
+        plane.header.frame_id = frame_id;
+        plane.header.stamp = ros::Time().fromSec(timestamp);
+        plane.ns = "plane";
+        plane.id = idx;
+        if (!merged)
+            plane.type = visualization_msgs::Marker::CYLINDER;
+        else
+            plane.type = visualization_msgs::Marker::CUBE;
+        plane.action = visualization_msgs::Marker::ADD;
+        plane.pose.position.x = voxel_center[0];
+        plane.pose.position.y = voxel_center[1];
+        plane.pose.position.z = voxel_center[2];
+        geometry_msgs::Quaternion q;
+        calcVectQuation(node->plane->norm, q);
+        plane.pose.orientation = q;
+        plane.scale.x = 0.1;
+        plane.scale.y = 0.1;
+        plane.scale.z = 0.01;
+        plane.color.a = alpha;
+        plane.color.r = plane_rgb[0];
+        plane.color.g = plane_rgb[1];
+        plane.color.b = plane_rgb[2];
+        voxel_plane.markers.push_back(plane);
+        idx++;
+        if (idx > max_capacity)
+            break;
+    }
+    return voxel_plane;
+}

@@ -3,7 +3,10 @@ imu_topic: /livox/imu
 
 map_frame: lidar
 body_frame: body
+publish_voxel_map: false
 
+range_min: 0.5
+range_max: 30.0
 scan_resolution: 0.1
 map_resolution: 0.25
 max_point_thresh: 100
@@ -12,5 +15,6 @@ estimate_ext: false
 plane_thresh: 0.01
 merge_angle_thresh: 0.1
 merge_distance_thresh: 0.02
+
 
 p_il: [ -0.011, -0.02329, 0.04412 ]

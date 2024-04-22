@@ -8,6 +8,8 @@
 #include <geometry_msgs/TransformStamped.h>
 #include <visualization_msgs/MarkerArray.h>
 
+#include "map_builder/voxel_map.h"
+
 /**
  * msg: input
  * out: output lidar
@@ -28,3 +30,5 @@ nav_msgs::Odometry eigen2Odometry(const Eigen::Matrix3d &rot, const Eigen::Vecto
 void mapJet(double v, double vmin, double vmax, uint8_t &r, uint8_t &g, uint8_t &b);
 
 void calcVectQuation(const Eigen::Vector3d &x_vec, const Eigen::Vector3d &y_vec, const Eigen::Vector3d &z_vec, geometry_msgs::Quaternion &q);
+void calcVectQuation(const Eigen::Vector3d &norm_vec, geometry_msgs::Quaternion &q);
+visualization_msgs::MarkerArray voxel2MarkerArray(std::shared_ptr<lio::VoxelMap> map, const std::string &frame_id, const double &timestamp, int max_capacity = 1000000);

@@ -25,7 +25,7 @@ namespace lio
         addToPlane(pv);
         temp_points.push_back(pv);
     }
-    
+
     void UnionFindNode::merge()
     {
         std::vector<VoxelKey> near;
@@ -190,6 +190,9 @@ namespace lio
         if (plane->mean.dot(plane->norm) < 0)
             plane->norm = -plane->norm;
         plane->axis_distance = plane->mean.dot(plane->norm);
+
+        // if there is no need for show voxel map delete this line
+        voxel_center = plane->mean;
     }
 
     VoxelMap::VoxelMap(double _voxel_size, double _plane_thresh, int _update_size_thresh, int _max_point_thresh)
