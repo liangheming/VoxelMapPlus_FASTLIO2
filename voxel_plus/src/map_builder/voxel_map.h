@@ -17,8 +17,9 @@ namespace lio
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         Eigen::Vector3d point_lidar;
         Eigen::Vector3d point_world;
-        Eigen::Vector4d plane_param;
-        Eigen::Matrix4d plane_cov;
+        Eigen::Vector3d plane_mean;
+        Eigen::Vector3d plane_norm;
+        Eigen::Matrix<double, 6, 6> plane_cov;
 
         Eigen::Matrix3d cov_lidar;
         Eigen::Matrix3d cov_world;
@@ -60,11 +61,12 @@ namespace lio
         bool is_init = false;
         bool is_root_plane = true;
         int n = 0;
+        double axis_distance = 0.0;
 
-        Eigen::Vector3d mean = Eigen::Vector3d::Zero();
         Eigen::Matrix3d ppt = Eigen::Matrix3d::Zero();
-        Eigen::Matrix4d plane_cov = Eigen::Matrix4d::Zero();
-        Eigen::Vector4d plane_param = Eigen::Vector4d::Zero();
+        Eigen::Vector3d mean = Eigen::Vector3d::Zero();
+        Eigen::Vector3d norm = Eigen::Vector3d::Zero();
+        Eigen::Matrix<double, 6, 6> plane_cov = Eigen::Matrix<double, 6, 6>::Zero();
     };
 
     class VoxelMap;
@@ -106,7 +108,7 @@ namespace lio
 
         void update(std::vector<PointWithCov> &pvs);
 
-        void buildResidual(ResidualData &info,UnionFindNode* node);
+        void buildResidual(ResidualData &info, UnionFindNode *node);
 
         ~VoxelMap();
 
@@ -118,4 +120,4 @@ namespace lio
         int max_point_thresh;
     };
 
-} // namespace lio
+} 

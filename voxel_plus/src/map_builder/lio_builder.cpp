@@ -240,7 +240,6 @@ namespace lio
                 pv_list.push_back(pv);
             }
             map->update(pv_list);
-            // exit(0);
         }
     }
 
@@ -270,6 +269,7 @@ namespace lio
         shared_state.b.setZero();
         int effect_num = 0;
         Eigen::Matrix<double, 1, 12> J;
+        Eigen::Matrix<double, 1, 6> J_v;
 
         for (int i = 0; i < size; i++)
         {
@@ -277,11 +277,13 @@ namespace lio
                 continue;
             effect_num++;
             J.setZero();
-            Eigen::Vector3d plane_norm = data_group.residual_info[i].plane_param.block<3, 1>(0, 0);
-            Eigen::Vector4d point_world_homo(data_group.residual_info[i].point_world(0),
-                                             data_group.residual_info[i].point_world(1),
-                                             data_group.residual_info[i].point_world(2),
-                                             1.0);
+            Eigen::Vector3d plane_norm = data_group.residual_info[i].plane_norm;
+            J_v.block<1, 3>(0, 0) = (data_group.residual_info[i].point_world - data_group.residual_info[i].plane_mean).transpose();
+            J_v.block<1, 3>(0, 3) = -plane_norm.transpose();
+            double r_cov = J_v * data_group.residual_info[i].plane_cov * J_v.transpose();
+            r_cov += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
+            double r_info = r_cov < 0.001 ? 1000 : 1.0 / r_cov;
+
             J.block<1, 3>(0, 0) = plane_norm.transpose();
             J.block<1, 3>(0, 3) = -plane_norm.transpose() * state.rot * Sophus::SO3d::hat(state.rot_ext * data_group.residual_info[i].point_lidar + state.pos_ext);
             if (config.estimate_ext)
@@ -289,12 +291,6 @@ namespace lio
                 J.block<1, 3>(0, 6) = -plane_norm.transpose() * r_wl * Sophus::SO3d::hat(data_group.residual_info[i].point_lidar);
                 J.block<1, 3>(0, 9) = plane_norm.transpose() * state.rot;
             }
-            double r_info = point_world_homo.transpose() * data_group.residual_info[i].plane_cov * point_world_homo;
-            r_info += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
-
-            // r_info = r_info < 0.001 ? 1000 : 1 / r_info;
-            r_info = 1000;
-
             shared_state.H += J.transpose() * r_info * J;
             shared_state.b += J.transpose() * r_info * data_group.residual_info[i].residual;
         }

@@ -7,7 +7,7 @@ body_frame: body
 scan_resolution: 0.1
 map_resolution: 0.5
 max_point_thresh: 100
-update_point_thresh: 20
+update_point_thresh: 10
 estimate_ext: false
 plane_thresh: 0.01
 

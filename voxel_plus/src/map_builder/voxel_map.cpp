@@ -10,7 +10,6 @@ namespace lio
           voxel_center(_voxel_center),
           map(_map)
     {
-        // total_point_num = 0;
         newly_added_num = 0;
         update_enable = true;
         plane = std::make_shared<Plane>();
@@ -81,7 +80,6 @@ namespace lio
                     }
                 }
             }
-            
         }
     }
 
@@ -101,21 +99,36 @@ namespace lio
         plane->is_init = true;
         Eigen::Matrix3d cov = plane->ppt / static_cast<double>(plane->n) - plane->mean * plane->mean.transpose();
         Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(cov);
+        Eigen::Matrix3d evecs = es.eigenvectors();
         Eigen::Vector3d evals = es.eigenvalues();
-        Eigen::Vector3d::Index min_es_idx;
-        double mean_eigen = evals.minCoeff(&min_es_idx);
 
-        if (mean_eigen > plane_thesh)
+        if (evals(0) > plane_thesh)
         {
             plane->is_plane = false;
             return;
         }
-
         plane->is_plane = true;
-        Eigen::Matrix4d mat;
-       
-        if (plane->plane_param(3) < 0)
-            plane->plane_param = -plane->plane_param;
+        plane->norm = evecs.col(0);
+        Eigen::Matrix3d J_Q = Eigen::Matrix3d::Identity() / static_cast<double>(plane->n);
+
+        for (PointWithCov &pv : temp_points)
+        {
+            Eigen::Matrix<double, 6, 3> J;
+            Eigen::Matrix3d F = Eigen::Matrix3d::Zero();
+            for (int m = 1; m < 3; m++)
+            {
+                Eigen::Matrix<double, 1, 3> F_m = (pv.point - plane->mean).transpose() / ((plane->n) * (evals(0) - evals(m))) *
+                                                  (evecs.col(m) * evecs.col(0).transpose() +
+                                                   evecs.col(0) * evecs.col(m).transpose());
+                F.row(m) = F_m;
+            }
+            J.block<3, 3>(0, 0) = evecs * F;
+            J.block<3, 3>(3, 0) = J_Q;
+            plane->plane_cov += J * pv.cov * J.transpose();
+        }
+        if (plane->mean.dot(plane->norm) < 0)
+            plane->norm = -plane->norm;
+        plane->axis_distance = plane->mean.dot(plane->norm);
     }
 
     VoxelMap::VoxelMap(double _voxel_size, double _plane_thresh, int _update_size_thresh, int _max_point_thresh)
@@ -173,10 +186,24 @@ namespace lio
         info.is_valid = false;
         if (node->isPlane())
         {
-            info.residual = node->plane->plane_param.block<3, 1>(0, 0).dot(info.point_world) + node->plane->plane_param(3);
-            info.plane_param = node->plane->plane_param;
+            Eigen::Vector3d p_world_to_center = info.point_world - node->plane->mean;
+            info.plane_mean = node->plane->mean;
             info.plane_cov = node->plane->plane_cov;
-            info.is_valid = true;
+            info.plane_norm = node->plane->norm;
+            
+            info.residual = info.plane_norm.transpose() * p_world_to_center;
+            
+            Eigen::Matrix<double, 1, 6> J_nq;
+            J_nq.block<1, 3>(0, 0) = p_world_to_center;
+            J_nq.block<1, 3>(0, 3) = -info.plane_norm;
+
+            double sigma_l = J_nq * info.plane_cov * J_nq.transpose();
+            sigma_l += info.plane_norm.transpose() * info.cov_world * info.plane_norm;
+
+            if (std::abs(info.residual) < 3.0 * sqrt(sigma_l))
+                info.is_valid = true;
+            else
+                info.is_valid = false;
         }
     }
 
