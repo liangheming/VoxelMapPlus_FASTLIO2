@@ -56,6 +56,8 @@ public:
 
         nh.param<double>("scan_resolution", lio_config.scan_resolution, 0.2);
         nh.param<double>("map_resolution", lio_config.map_resolution, 0.5);
+        nh.param<double>("merge_angle_thresh", lio_config.merge_angle_thresh, 0.1);
+        nh.param<double>("merge_distance_thresh", lio_config.merge_distance_thresh, 0.02);
         nh.param<int>("max_point_thresh", lio_config.max_point_thresh, 100);
         nh.param<int>("update_point_thresh", lio_config.update_point_thresh, 10);
         nh.param<double>("plane_thresh", lio_config.plane_thresh, 0.01);

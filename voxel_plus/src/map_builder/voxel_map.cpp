@@ -50,7 +50,6 @@ namespace lio
                 {
                     continue;
                 }
-                // std::shared_ptr<Plane> neighbor_plane = neighRealRootNode->plane;
                 std::shared_ptr<Plane> now_plane = nowRealRootNode->plane;
                 double norm_distance = 1.0 - neighRealRootNode->plane->norm.dot(now_plane->norm);
                 double axis_distance = std::abs(neighRealRootNode->plane->axis_distance - now_plane->axis_distance);
@@ -75,7 +74,6 @@ namespace lio
                     new_axis_distance = -new_axis_distance;
                     new_norm = -new_norm;
                 }
-
                 neighRealRootNode->root_node = nowRealRootNode;
                 now_plane->mean = new_mean;
                 now_plane->norm = new_norm;

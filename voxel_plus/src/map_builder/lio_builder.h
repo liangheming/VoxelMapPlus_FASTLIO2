@@ -35,6 +35,9 @@ namespace lio
 
         double ranging_cov = 0.04;
         double angle_cov = 0.1;
+
+        double merge_angle_thresh = 0.1;
+        double merge_distance_thresh=0.02;
     };
     struct LIODataGroup
     {

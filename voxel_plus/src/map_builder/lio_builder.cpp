@@ -18,6 +18,8 @@ namespace lio
             [this](kf::State &s, kf::SharedState &d)
             { sharedUpdateFunc(s, d); });
         data_group.residual_info.resize(10000);
+        UnionFindNode::merge_angle_thresh = config.merge_angle_thresh;
+        UnionFindNode::merge_distance_thresh = config.merge_distance_thresh;
     }
 
     bool LIOBuilder::initializeImu(std::vector<IMUData> &imus)
