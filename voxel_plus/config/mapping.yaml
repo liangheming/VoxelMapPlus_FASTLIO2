@@ -3,7 +3,7 @@ imu_topic: /livox/imu
 
 map_frame: lidar
 body_frame: body
-publish_voxel_map: false
+publish_voxel_map: true
 
 range_min: 0.5
 range_max: 30.0

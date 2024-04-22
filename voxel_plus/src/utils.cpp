@@ -157,7 +157,7 @@ void calcVectQuation(const Eigen::Vector3d &norm_vec, geometry_msgs::Quaternion 
     q.z = 0.0;
 }
 
-visualization_msgs::MarkerArray voxel2MarkerArray(std::shared_ptr<lio::VoxelMap> map, const std::string &frame_id, const double &timestamp, int max_capacity)
+visualization_msgs::MarkerArray voxel2MarkerArray(std::shared_ptr<lio::VoxelMap> map, const std::string &frame_id, const double &timestamp, int max_capacity, double voxel_size)
 {
 
     visualization_msgs::MarkerArray voxel_plane;
@@ -167,7 +167,7 @@ visualization_msgs::MarkerArray voxel2MarkerArray(std::shared_ptr<lio::VoxelMap>
     int idx = 0;
     for (auto &kv : map->feat_map)
     {
-        if (!kv.second->is_plane)
+        if (!kv.second->is_plane || kv.second->update_enable)
             continue;
         lio::UnionFindNode *node = kv.second;
         Eigen::Vector3d voxel_center = node->voxel_center;
@@ -204,13 +204,14 @@ visualization_msgs::MarkerArray voxel2MarkerArray(std::shared_ptr<lio::VoxelMap>
         geometry_msgs::Quaternion q;
         calcVectQuation(node->plane->norm, q);
         plane.pose.orientation = q;
-        plane.scale.x = 0.1;
-        plane.scale.y = 0.1;
+        plane.scale.x = voxel_size;
+        plane.scale.y = voxel_size;
         plane.scale.z = 0.01;
         plane.color.a = alpha;
         plane.color.r = plane_rgb[0];
         plane.color.g = plane_rgb[1];
         plane.color.b = plane_rgb[2];
+        plane.lifetime = ros::Duration();
         voxel_plane.markers.push_back(plane);
         idx++;
         if (idx > max_capacity)
