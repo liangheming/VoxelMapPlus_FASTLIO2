@@ -81,6 +81,7 @@ namespace lio
         void emplace(const PointWithCov &pv);
         bool isPlane() { return plane->is_plane; }
         bool isInitialized() { return plane->is_init; }
+        void merge();
 
     public:
         UnionFindNode *root_node;
@@ -93,6 +94,9 @@ namespace lio
         int max_point_thresh;
         bool update_enable;
         double plane_thesh;
+        VoxelKey position;
+        static double  merge_angle_thresh;
+        static double merge_distance_thresh;
     };
 
     typedef std::unordered_map<VoxelKey, UnionFindNode *, VoxelKey::Hasher> FeatMap;

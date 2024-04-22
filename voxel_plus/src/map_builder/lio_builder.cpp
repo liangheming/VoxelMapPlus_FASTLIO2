@@ -262,7 +262,18 @@ namespace lio
             auto iter = map->feat_map.find(position);
             if (iter != map->feat_map.end())
             {
-                map->buildResidual(data_group.residual_info[i], iter->second);
+                UnionFindNode *currentRootNode = iter->second;
+                while (currentRootNode->root_node != currentRootNode)
+                {
+                    currentRootNode = currentRootNode->root_node;
+                    if (currentRootNode->root_node == currentRootNode)
+                    {
+                        iter->second->root_node = currentRootNode;
+                        // iter->second->plane.reset();
+                    }
+                }
+
+                map->buildResidual(data_group.residual_info[i], currentRootNode);
             }
         }
         shared_state.H.setZero();
