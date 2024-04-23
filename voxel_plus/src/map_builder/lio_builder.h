@@ -68,8 +68,6 @@ namespace lio
 
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr lidarToBody(const pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud);
         
-        void sharedUpdateFunc(kf::State &state, kf::SharedState &shared_state);
-
     public:
         kf::IESKF kf;
         LIOConfig config;

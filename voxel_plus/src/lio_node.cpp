@@ -14,7 +14,6 @@ struct NodeConfig
     std::string imu_topic;
     std::string map_frame;
     std::string body_frame;
-    bool publish_voxel_map;
     double range_min = 0.5;
     double range_max = 20.0;
     int filter_num = 3;
