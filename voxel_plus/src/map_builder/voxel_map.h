@@ -90,7 +90,7 @@ namespace lio
         bool is_plane;
         bool update_enable;
         int newly_add_point;
-        u_int64_t id;
+        bool merged;
         uint64_t group_id;
         std::vector<PointWithCov> temp_points;
         VoxelKey position;

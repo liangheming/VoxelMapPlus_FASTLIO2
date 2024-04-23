@@ -144,17 +144,11 @@ void calcVectQuation(const Eigen::Vector3d &x_vec, const Eigen::Vector3d &y_vec,
 
 void calcVectQuation(const Eigen::Vector3d &norm_vec, geometry_msgs::Quaternion &q)
 {
-    double a = norm_vec(0);
-    double b = norm_vec(1);
-    double c = norm_vec(2);
-    double theta_half = acos(c) / 2;
-    double t2 = sqrt(a * a + b * b);
-    b = b / t2;
-    a = a / t2;
-    q.w = cos(theta_half);
-    q.x = b * sin(theta_half);
-    q.y = -1 * a * sin(theta_half);
-    q.z = 0.0;
+    Eigen::Quaterniond rq = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d(0, 0, 1), norm_vec);
+    q.w = rq.w();
+    q.x = rq.x();
+    q.y = rq.y();
+    q.z = rq.z();
 }
 
 visualization_msgs::MarkerArray voxel2MarkerArray(std::shared_ptr<lio::VoxelMap> map, const std::string &frame_id, const double &timestamp, int max_capacity, double voxel_size)
@@ -172,9 +166,7 @@ visualization_msgs::MarkerArray voxel2MarkerArray(std::shared_ptr<lio::VoxelMap>
             continue;
         std::shared_ptr<lio::VoxelGrid> grid = kv.second;
         Eigen::Vector3d grid_center = grid->center;
-        bool merged = false;
-        if (grid->id != grid->group_id)
-            merged = true;
+
         double trace = grid->plane->cov.block<3, 3>(0, 0).trace();
         if (trace >= 0.25)
             trace = 0.25;
@@ -191,7 +183,7 @@ visualization_msgs::MarkerArray voxel2MarkerArray(std::shared_ptr<lio::VoxelMap>
         plane.header.stamp = ros::Time().fromSec(timestamp);
         plane.ns = "plane";
         plane.id = count++;
-        if (!merged)
+        if (!grid->merged)
             plane.type = visualization_msgs::Marker::CYLINDER;
         else
             plane.type = visualization_msgs::Marker::CUBE;

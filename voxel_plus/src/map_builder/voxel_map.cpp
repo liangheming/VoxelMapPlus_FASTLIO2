@@ -11,8 +11,8 @@ namespace lio
           plane_thresh(_plane_thresh),
           position(_position.x, _position.y, _position.z)
     {
-        id = VoxelGrid::count++;
-        group_id = id;
+        merged = false;
+        group_id = VoxelGrid::count++;
         is_init = false;
         is_plane = false;
         temp_points.reserve(max_point_thresh);
@@ -151,7 +151,7 @@ namespace lio
                     continue;
                 double norm_distance = 1.0 - near_node->plane->norm.dot(plane->norm);
                 double axis_distance = std::abs(near_node->plane->norm.dot(near_node->plane->mean) - plane->norm.dot(plane->mean));
-               
+
                 if (norm_distance > 0.08 || axis_distance > 0.1 * map->voxel_size)
                     continue;
                 double tn0 = plane->cov.block<3, 3>(0, 0).trace(),
@@ -164,10 +164,12 @@ namespace lio
                 Eigen::Matrix<double, 6, 6> new_cov = (tc0 * tc0 * near_node->plane->cov + tc1 * tc1 * plane->cov) / ((tc0 + tc1) * (tc0 + tc1));
 
                 near_node->group_id = group_id;
+                merged = true;
+                near_node->merged = true;
 
                 if (-new_mean.dot(new_norm) < 0.0)
                     new_norm = -new_norm;
-                
+
                 plane->mean = new_mean;
                 plane->norm = new_norm;
                 plane->cov = new_cov;
