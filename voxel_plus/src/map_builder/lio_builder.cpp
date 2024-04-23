@@ -12,14 +12,14 @@ namespace lio
         data_group.Q.block<3, 3>(9, 9) = Eigen::Matrix3d::Identity() * config.nba;
         if (config.scan_resolution > 0.0)
             scan_filter.setLeafSize(config.scan_resolution, config.scan_resolution, config.scan_resolution);
+
+        map = std::make_shared<VoxelMap>(config.max_point_thresh, config.update_size_thresh, config.plane_thresh, config.voxel_size);
+
         lidar_cloud.reset(new pcl::PointCloud<pcl::PointXYZINormal>);
-        map = std::make_shared<VoxelMap>(config.map_resolution, config.plane_thresh, config.update_point_thresh, config.max_point_thresh);
         kf.set_share_function(
             [this](kf::State &s, kf::SharedState &d)
             { sharedUpdateFunc(s, d); });
         data_group.residual_info.resize(10000);
-        UnionFindNode::merge_angle_thresh = config.merge_angle_thresh;
-        UnionFindNode::merge_distance_thresh = config.merge_distance_thresh;
     }
 
     bool LIOBuilder::initializeImu(std::vector<IMUData> &imus)
@@ -201,7 +201,9 @@ namespace lio
                 pv.cov = point_cov;
                 pv_list.push_back(pv);
             }
+
             map->build(pv_list);
+
             status = LIOStatus::LIO_MAPPING;
         }
         else
@@ -216,16 +218,13 @@ namespace lio
             {
                 pcl::copyPointCloud(*package.cloud, *lidar_cloud);
             }
-
             int size = lidar_cloud->size();
             for (int i = 0; i < size; i++)
             {
                 data_group.residual_info[i].point_lidar = Eigen::Vector3d(lidar_cloud->points[i].x, lidar_cloud->points[i].y, lidar_cloud->points[i].z);
                 calcBodyCov(data_group.residual_info[i].point_lidar, config.ranging_cov, config.angle_cov, data_group.residual_info[i].cov_lidar);
             }
-
             kf.update();
-
             pcl::PointCloud<pcl::PointXYZINormal>::Ptr point_world = lidarToWorld(lidar_cloud);
             std::vector<PointWithCov> pv_list;
             Eigen::Matrix3d r_wl = kf.x().rot * kf.x().rot_ext;
@@ -257,31 +256,26 @@ namespace lio
 #endif
         for (int i = 0; i < size; i++)
         {
-            data_group.residual_info[i].is_valid = false;
             data_group.residual_info[i].point_world = r_wl * data_group.residual_info[i].point_lidar + p_wl;
+
             Eigen::Matrix3d point_crossmat = Sophus::SO3d::hat(data_group.residual_info[i].point_lidar);
+            data_group.residual_info[i].cov_world = r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() +
+                                                    point_crossmat * kf.P().block<3, 3>(kf::IESKF::R_ID, kf::IESKF::R_ID) * point_crossmat.transpose() +
+                                                    kf.P().block<3, 3>(kf::IESKF::P_ID, kf::IESKF::P_ID);
             VoxelKey position = map->index(data_group.residual_info[i].point_world);
-            auto iter = map->feat_map.find(position);
-            if (iter != map->feat_map.end())
+            auto iter = map->featmap.find(position);
+            if (iter != map->featmap.end())
             {
-                UnionFindNode *currentRootNode = iter->second;
-                while (currentRootNode->root_node != currentRootNode)
-                {
-                    currentRootNode = currentRootNode->root_node;
-                    if (currentRootNode->root_node == currentRootNode)
-                    {
-                        iter->second->root_node = currentRootNode;
-                        // iter->second->plane.reset();
-                    }
-                }
-                map->buildResidual(data_group.residual_info[i], currentRootNode);
+                map->buildResidual(data_group.residual_info[i], iter->second);
             }
         }
+
         shared_state.H.setZero();
         shared_state.b.setZero();
-        int effect_num = 0;
         Eigen::Matrix<double, 1, 12> J;
-        Eigen::Matrix<double, 1, 6> J_v;
+        Eigen::Matrix<double, 1, 6> Jn;
+
+        int effect_num = 0;
 
         for (int i = 0; i < size; i++)
         {
@@ -289,13 +283,15 @@ namespace lio
                 continue;
             effect_num++;
             J.setZero();
-            Eigen::Vector3d plane_norm = data_group.residual_info[i].plane_norm;
-            J_v.block<1, 3>(0, 0) = (data_group.residual_info[i].point_world - data_group.residual_info[i].plane_mean).transpose();
-            J_v.block<1, 3>(0, 3) = -plane_norm.transpose();
-            double r_cov = J_v * data_group.residual_info[i].plane_cov * J_v.transpose();
-            r_cov += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
-            double r_info = r_cov < 0.001 ? 1000 : 1.0 / r_cov;
 
+            Eigen::Vector3d plane_norm = data_group.residual_info[i].plane_norm;
+
+            Jn.block<1, 3>(0, 0) = (data_group.residual_info[i].point_world - data_group.residual_info[i].plane_mean).transpose();
+            Jn.block<1, 3>(0, 3) = -plane_norm.transpose();
+            double r_cov = Jn * data_group.residual_info[i].plane_cov * Jn.transpose();
+            r_cov += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
+
+            double r_info = r_cov < 0.0002 ? 5000 : 1.0 / r_cov;
             J.block<1, 3>(0, 0) = plane_norm.transpose();
             J.block<1, 3>(0, 3) = -plane_norm.transpose() * state.rot * Sophus::SO3d::hat(state.rot_ext * data_group.residual_info[i].point_lidar + state.pos_ext);
             if (config.estimate_ext)
@@ -308,6 +304,7 @@ namespace lio
         }
         if (effect_num < 1)
             std::cout << "NO EFFECTIVE POINT";
+        // std::cout << "==================: " << effect_num << std::endl;
     }
 
 }

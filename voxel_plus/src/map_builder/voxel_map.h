@@ -1,44 +1,29 @@
 #pragma once
-#include <cstdint>
+#include <list>
 #include <vector>
-#include <Eigen/Eigen>
 #include <memory>
+#include <cstdint>
+#include <Eigen/Eigen>
 #include <unordered_map>
-#include <iostream>
 #include <chrono>
+#include <iostream>
 
 #define HASH_P 116101
 #define MAX_N 10000000000
 
 namespace lio
 {
-    struct ResidualData
-    {
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-        Eigen::Vector3d point_lidar;
-        Eigen::Vector3d point_world;
-        Eigen::Vector3d plane_mean;
-        Eigen::Vector3d plane_norm;
-        Eigen::Matrix<double, 6, 6> plane_cov;
-
-        Eigen::Matrix3d cov_lidar;
-        Eigen::Matrix3d cov_world;
-        bool is_valid = false;
-        double residual = 0.0;
-    };
 
     class VoxelKey
     {
     public:
         int64_t x, y, z;
-
         VoxelKey(int64_t _x = 0, int64_t _y = 0, int64_t _z = 0) : x(_x), y(_y), z(_z) {}
 
         bool operator==(const VoxelKey &other) const
         {
             return (x == other.x && y == other.y && z == other.z);
         }
-
         struct Hasher
         {
             int64_t operator()(const VoxelKey &k) const
@@ -57,50 +42,69 @@ namespace lio
 
     struct Plane
     {
-        int n = 0;
-        double axis_distance = 0.0;
-        Eigen::Matrix3d ppt = Eigen::Matrix3d::Zero();
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         Eigen::Vector3d mean = Eigen::Vector3d::Zero();
+        Eigen::Matrix3d ppt = Eigen::Matrix3d::Zero();
         Eigen::Vector3d norm = Eigen::Vector3d::Zero();
-        Eigen::Matrix<double, 6, 6> plane_cov = Eigen::Matrix<double, 6, 6>::Zero();
+        Eigen::Matrix<double, 6, 6> cov;
+        int n = 0;
+    };
+
+    struct ResidualData
+    {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+        Eigen::Vector3d point_lidar;
+        Eigen::Vector3d point_world;
+        Eigen::Vector3d plane_mean;
+        Eigen::Vector3d plane_norm;
+        Eigen::Matrix<double, 6, 6> plane_cov;
+        Eigen::Matrix3d cov_lidar;
+        Eigen::Matrix3d cov_world;
+        bool is_valid = false;
+        double residual = 0.0;
     };
 
     class VoxelMap;
 
-    class UnionFindNode
+    class VoxelGrid
     {
     public:
-        UnionFindNode(double _plane_thresh, int _update_size_thresh, int _max_point_thresh, Eigen::Vector3d &_voxel_center, VoxelMap *_map);
+        VoxelGrid(int _max_point_thresh, int _update_point_thresh, double _plane_thresh, VoxelKey _position, VoxelMap *_map);
+
         void updatePlane();
+
         void addToPlane(const PointWithCov &pv);
-        void push(const PointWithCov &pv);
-        void emplace(const PointWithCov &pv);
+
+        void addPoint(const PointWithCov &pv);
+
+        void pushPoint(const PointWithCov &pv);
+
         void merge();
 
     public:
-        UnionFindNode *root_node;
-        VoxelMap *map;
-        std::shared_ptr<Plane> plane;
-        std::vector<PointWithCov> temp_points;
-        Eigen::Vector3d voxel_center;
-        int newly_added_num;
-        int update_size_thresh;
+        static uint64_t count;
         int max_point_thresh;
-        bool update_enable;
-        double plane_thesh;
+        int update_point_thresh;
+        double plane_thresh;
         bool is_init;
         bool is_plane;
+        bool update_enable;
+        int newly_add_point;
+        bool merged;
+        uint64_t group_id;
+        std::vector<PointWithCov> temp_points;
         VoxelKey position;
-        static double  merge_angle_thresh;
-        static double merge_distance_thresh;
+        VoxelMap *map;
+        std::shared_ptr<Plane> plane;
+        Eigen::Vector3d center;
     };
 
-    typedef std::unordered_map<VoxelKey, UnionFindNode *, VoxelKey::Hasher> FeatMap;
+    typedef std::unordered_map<VoxelKey, std::shared_ptr<VoxelGrid>, VoxelKey::Hasher> Featmap;
 
     class VoxelMap
     {
     public:
-        VoxelMap(double _voxel_size, double _plane_thresh, int _update_size_thresh, int _max_point_thresh);
+        VoxelMap(int _max_point_thresh, int _update_point_thresh, double _plane_thresh, double _voxel_size);
 
         VoxelKey index(const Eigen::Vector3d &point);
 
@@ -108,16 +112,14 @@ namespace lio
 
         void update(std::vector<PointWithCov> &pvs);
 
-        void buildResidual(ResidualData &info, UnionFindNode *node);
-
-        ~VoxelMap();
+        bool buildResidual(ResidualData &data, std::shared_ptr<VoxelGrid> voxel_grid);
 
     public:
-        FeatMap feat_map;
-        double voxel_size;
-        double plane_thresh;
-        int update_size_thresh;
         int max_point_thresh;
+        int update_point_thresh;
+        double plane_thresh;
+        double voxel_size;
+        Featmap featmap;
     };
 
-} 
+} // namespace lio

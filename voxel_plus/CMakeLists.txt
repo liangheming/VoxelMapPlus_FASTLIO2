@@ -11,9 +11,8 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -pthread -std=c++0x -std=c++14 -fexceptions")
-
 add_definitions(-DMP_EN)
-add_definitions(-DMP_PROC_NUM=2)
+add_definitions(-DMP_PROC_NUM=1)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -53,6 +52,7 @@ include_directories(
 set(SRC_LIST src/utils.cpp
              src/map_builder/commons.cpp
              src/map_builder/ieskf.cpp
+             src/map_builder/voxel_map.cpp
              src/map_builder/lio_builder.cpp
              src/map_builder/voxel_map.cpp
              )

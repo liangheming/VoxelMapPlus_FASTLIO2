@@ -1,6 +1,7 @@
 #pragma once
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include "map_builder/voxel_map.h"
 #include <sensor_msgs/PointCloud2.h>
 #include <livox_ros_driver2/CustomMsg.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -31,6 +32,6 @@ void mapJet(double v, double vmin, double vmax, uint8_t &r, uint8_t &g, uint8_t 
 
 void calcVectQuation(const Eigen::Vector3d &x_vec, const Eigen::Vector3d &y_vec, const Eigen::Vector3d &z_vec, geometry_msgs::Quaternion &q);
 
-void calcVectQuation(const Eigen::Vector3d &norm_vec, geometry_msgs::Quaternion &q);
+void calcVectQuation(const Eigen::Vector3d &norm, geometry_msgs::Quaternion &q);
 
 visualization_msgs::MarkerArray voxel2MarkerArray(std::shared_ptr<lio::VoxelMap> map, const std::string &frame_id, const double &timestamp, int max_capacity = 1000000, double voxel_size = 0.2);

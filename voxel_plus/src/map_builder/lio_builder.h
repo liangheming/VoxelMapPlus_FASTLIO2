@@ -21,23 +21,20 @@ namespace lio
         double ng = 0.01;
         double nba = 0.0001;
         double nbg = 0.0001;
-        double scan_resolution = 0.1;
-        double map_resolution = 0.25;
         int imu_init_num = 20;
         Eigen::Matrix3d r_il = Eigen::Matrix3d::Identity();
         Eigen::Vector3d p_il = Eigen::Vector3d::Zero();
         bool gravity_align = true;
         bool estimate_ext = false;
 
+        double scan_resolution = 0.1;
+        double voxel_size = 0.5;
+        int update_size_thresh = 10;
         int max_point_thresh = 100;
-        int update_point_thresh = 10;
         double plane_thresh = 0.01;
 
         double ranging_cov = 0.04;
         double angle_cov = 0.1;
-
-        double merge_angle_thresh = 0.1;
-        double merge_distance_thresh=0.02;
     };
     struct LIODataGroup
     {
@@ -49,7 +46,6 @@ namespace lio
         double last_cloud_end_time = 0.0;
         double gravity_norm;
         kf::Matrix12d Q = kf::Matrix12d::Identity();
-
         std::vector<ResidualData> residual_info;
     };
 
@@ -65,6 +61,8 @@ namespace lio
         void undistortCloud(SyncPackage &package);
 
         void process(SyncPackage &package);
+
+        void sharedUpdateFunc(kf::State &state, kf::SharedState &shared_state);
 
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr lidarToWorld(const pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud);
 
