@@ -56,9 +56,8 @@ public:
 
         nh.param<double>("scan_resolution", lio_config.scan_resolution, 0.2);
         nh.param<double>("voxel_size", lio_config.voxel_size, 0.5);
-        nh.param<int>("max_layer", lio_config.max_layer, 2);
         nh.param<int>("max_point_thresh", lio_config.max_point_thresh, 100);
-        nh.param<std::vector<int>>("update_size_threshes", lio_config.update_size_threshes, std::vector<int>{20, 10});
+        nh.param<int>("update_size_thresh", lio_config.update_size_thresh, 10);
         nh.param<bool>("gravity_align", lio_config.gravity_align, true);
         nh.param<int>("imu_init_num", lio_config.imu_init_num, 20);
         nh.param<double>("na", lio_config.na, 0.01);

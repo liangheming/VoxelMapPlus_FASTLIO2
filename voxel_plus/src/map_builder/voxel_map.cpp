@@ -1,286 +1,142 @@
 #include "voxel_map.h"
-#include <iostream>
+
 namespace lio
 {
-    OctoTree::OctoTree(int _max_layer, int _layer, std::vector<int> _update_size_threshes, int _max_point_thresh, double _plane_thresh)
-        : max_layer(_max_layer), layer(_layer), update_size_threshes(_update_size_threshes), max_point_thresh(_max_point_thresh), plane_thresh(_plane_thresh)
+
+    uint64_t VoxelGrid::count = 0;
+
+    VoxelGrid::VoxelGrid(int _max_point_thresh, int _update_point_thresh, double _plane_thresh, VoxelKey _position, VoxelMap *_map)
+        : max_point_thresh(_max_point_thresh),
+          update_point_thresh(_update_point_thresh),
+          plane_thresh(_plane_thresh),
+          position(_position.x, position.y, position.z),
+          map(_map)
     {
-        temp_points.clear();
-        is_leave = false;
-        all_point_num = 0;
-        new_point_num = 0;
-        update_size_thresh_for_new = 5;
-        is_initialized = false;
+        group_id = VoxelGrid::count++;
+        is_init = false;
+        is_plane = false;
+        temp_points.reserve(max_point_thresh);
+        newly_add_point = 0;
+        plane = std::make_shared<Plane>();
         update_enable = true;
-        update_size_thresh = update_size_threshes[layer];
-        plane.is_valid = false;
-        leaves.resize(8, nullptr);
     }
 
-    void OctoTree::insert(const std::vector<PointWithCov> &input_points)
+    void VoxelGrid::addToPlane(const PointWithCov &pv)
     {
-        if (!is_initialized)
-        {
-            temp_points.insert(temp_points.begin(), input_points.begin(), input_points.end());
-            all_point_num += input_points.size();
-            new_point_num += input_points.size();
-            initialize_tree();
-            return;
-        }
-
-        if (is_leave)
-        {
-            if (update_enable)
-            {
-                temp_points.insert(temp_points.begin(), input_points.begin(), input_points.end());
-                all_point_num += input_points.size();
-                new_point_num += input_points.size();
-                if (new_point_num >= update_size_thresh_for_new)
-                {
-                    build_plane(temp_points);
-                    new_point_num = 0;
-                }
-
-                if (all_point_num >= max_point_thresh)
-                {
-                    update_enable = false;
-                    std::vector<PointWithCov>().swap(temp_points);
-                }
-            }
-            return;
-        }
-
-        if (layer < max_layer - 1)
-        {
-            if (temp_points.size() != 0)
-                std::vector<PointWithCov>().swap(temp_points);
-            std::vector<std::vector<PointWithCov>> package(8, std::vector<PointWithCov>(0));
-
-            for (size_t i = 0; i < input_points.size(); i++)
-            {
-                int xyz[3] = {0, 0, 0};
-                int leafnum = subIndex(input_points[i], xyz);
-                if (leaves[leafnum] == nullptr)
-                {
-
-                    leaves[leafnum] = std::make_shared<OctoTree>(max_layer, layer + 1, update_size_threshes, max_point_thresh, plane_thresh);
-                    Eigen::Vector3d shift((2 * xyz[0] - 1) * quater_length, (2 * xyz[1] - 1) * quater_length, (2 * xyz[2] - 1) * quater_length);
-                    leaves[leafnum]->center = center + shift;
-                    leaves[leafnum]->quater_length = quater_length / 2;
-                }
-                package[leafnum].push_back(input_points[i]);
-            }
-
-            for (int i = 0; i < 8; i++)
-            {
-                if (package[i].size() == 0)
-                    continue;
-                leaves[i]->insert(package[i]);
-            }
-        }
+        plane->mean = plane->mean + (pv.point - plane->mean) / (plane->n + 1.0);
+        plane->ppt += pv.point * pv.point.transpose();
+        plane->n += 1;
     }
 
-    void OctoTree::initialize_tree()
+    void VoxelGrid::addPoint(const PointWithCov &pv)
     {
-        if (all_point_num < update_size_thresh)
-            return;
-        is_initialized = true;
-        new_point_num = 0;
-        build_plane(temp_points);
+        addToPlane(pv);
+        temp_points.push_back(pv);
+    }
 
-        if (plane.is_valid)
+    void VoxelGrid::pushPoint(const PointWithCov &pv)
+    {
+        if (!is_init)
         {
-            is_leave = true;
-            if (temp_points.size() > max_point_thresh)
-            {
-                update_enable = false;
-                std::vector<PointWithCov>().swap(temp_points);
-            }
-            else
-            {
-                update_enable = true;
-            }
+            addToPlane(pv);
+            temp_points.push_back(pv);
+            updatePlane();
         }
         else
         {
-            split_tree();
+            if (is_plane)
+            {
+                if (update_enable)
+                {
+                    addToPlane(pv);
+                    temp_points.push_back(pv);
+                    newly_add_point++;
+                    if (newly_add_point >= update_point_thresh)
+                    {
+                        updatePlane();
+                        newly_add_point = 0;
+                    }
+                    if (temp_points.size() > max_point_thresh)
+                    {
+                        update_enable = false;
+                        std::vector<PointWithCov>().swap(temp_points);
+                    }
+                }
+                else
+                {
+                    // do merge
+                }
+            }
+            else
+            {
+                if (update_enable)
+                {
+                    addToPlane(pv);
+                    temp_points.push_back(pv);
+                    newly_add_point++;
+                    if (newly_add_point >= update_point_thresh)
+                    {
+                        updatePlane();
+                        newly_add_point = 0;
+                    }
+                    if (temp_points.size() > max_point_thresh)
+                    {
+                        update_enable = false;
+                        std::vector<PointWithCov>().swap(temp_points);
+                    }
+                }
+            }
         }
     }
 
-    void OctoTree::split_tree()
+    void VoxelGrid::updatePlane()
     {
-        if (layer >= max_layer - 1)
+        assert(temp_points.size() == plane->n);
+        if (plane->n < update_point_thresh)
+            return;
+        is_init = true;
+        Eigen::Matrix3d cov = plane->ppt / static_cast<double>(plane->n) - plane->mean * plane->mean.transpose();
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(cov);
+        Eigen::Matrix3d evecs = es.eigenvectors();
+        Eigen::Vector3d evals = es.eigenvalues();
+        if (evals(0) > plane_thresh)
         {
-            is_leave = true;
+            is_plane = false;
             return;
         }
-
-        std::vector<std::vector<PointWithCov>> package(8, std::vector<PointWithCov>(0));
-
-        for (size_t i = 0; i < temp_points.size(); i++)
+        is_plane = true;
+        Eigen::Matrix3d J_Q = Eigen::Matrix3d::Identity() / static_cast<double>(plane->n);
+        Eigen::Vector3d plane_norm = evecs.col(0);
+        for (PointWithCov &pv : temp_points)
         {
-            int xyz[3] = {0, 0, 0};
-            int leafnum = subIndex(temp_points[i], xyz);
-            if (leaves[leafnum] == nullptr)
+
+            Eigen::Matrix<double, 4, 3> J;
+            Eigen::Matrix3d F = Eigen::Matrix3d::Zero();
+            for (int m = 1; m < 3; m++)
             {
-
-                leaves[leafnum] = std::make_shared<OctoTree>(max_layer, layer + 1, update_size_threshes, max_point_thresh, plane_thresh);
-                Eigen::Vector3d shift((2 * xyz[0] - 1) * quater_length, (2 * xyz[1] - 1) * quater_length, (2 * xyz[2] - 1) * quater_length);
-                leaves[leafnum]->center = center + shift;
-                leaves[leafnum]->quater_length = quater_length / 2;
+                Eigen::Matrix<double, 1, 3> F_m = (pv.point - plane->mean).transpose() / ((plane->n) * (evals(0) - evals(m))) *
+                                                  (evecs.col(m) * plane_norm.transpose() +
+                                                   plane_norm * evecs.col(m).transpose());
+                F.row(m) = F_m;
             }
-            package[leafnum].push_back(temp_points[i]);
+            J.block<3, 3>(0, 0) = evecs * F;
+            // J.block<1, 3>(3, 0) = plane_norm.transpose() * J_Q + plane->mean.transpose() * J.block<3, 3>(0, 0);
+            J.block<1, 3>(3, 0) = plane_norm.transpose() * J_Q;
+            plane->plane_cov += J * pv.cov * J.transpose();
         }
-
-        for (int i = 0; i < 8; i++)
+        double axis_distance = -plane->mean.dot(plane_norm);
+        if (axis_distance < 0)
         {
-            if (package[i].size() == 0)
-                continue;
-            leaves[i]->insert(package[i]);
+            plane_norm = -plane_norm;
+            axis_distance = -axis_distance;
         }
-        std::vector<PointWithCov>().swap(temp_points);
+        plane->plane_param.head(3) = plane_norm;
+        plane->plane_param(3) = axis_distance;
     }
 
-    int OctoTree::subIndex(const PointWithCov &pv, int *xyz)
+    VoxelMap::VoxelMap(int _max_point_thresh, int _update_point_thresh, double _plane_thresh, double _voxel_size) : max_point_thresh(_max_point_thresh), update_point_thresh(_update_point_thresh), plane_thresh(_plane_thresh), voxel_size(_voxel_size)
     {
-        if (pv.point[0] > center[0])
-            xyz[0] = 1;
-        if (pv.point[1] > center[1])
-            xyz[1] = 1;
-        if (pv.point[2] > center[2])
-            xyz[2] = 1;
-        return 4 * xyz[0] + 2 * xyz[1] + xyz[2];
-    }
-
-    void OctoTree::build_plane(const std::vector<PointWithCov> &points)
-    {
-        plane.plane_cov = Eigen::Matrix<double, 6, 6>::Zero();
-        plane.covariance = Eigen::Matrix3d::Zero();
-        plane.center = Eigen::Vector3d::Zero();
-        plane.normal = Eigen::Vector3d::Zero();
-        plane.points_size = points.size();
-
-        for (auto pv : points)
-        {
-            plane.covariance += pv.point * pv.point.transpose();
-            plane.center += pv.point;
-        }
-        plane.center = plane.center / plane.points_size;
-        plane.covariance = plane.covariance / plane.points_size - plane.center * plane.center.transpose();
-
-        Eigen::EigenSolver<Eigen::Matrix3d> es(plane.covariance);
-        Eigen::Matrix3cd evecs = es.eigenvectors();
-        Eigen::Vector3cd evals = es.eigenvalues();
-        Eigen::Vector3d evalsReal = evals.real();
-        Eigen::Matrix3d::Index evalsMin, evalsMax;
-        evalsReal.rowwise().sum().minCoeff(&evalsMin);
-        evalsReal.rowwise().sum().maxCoeff(&evalsMax);
-        int evalsMid = 3 - evalsMin - evalsMax;
-
-        Eigen::Matrix3d J_Q = Eigen::Matrix3d::Identity() / static_cast<double>(plane.points_size);
-        plane.eigens << evalsReal(evalsMin), evalsReal(evalsMid), evalsReal(evalsMax);
-        plane.normal = evecs.real().col(evalsMin);
-        plane.x_normal = evecs.real().col(evalsMax);
-        plane.y_normal = evecs.real().col(evalsMid);
-
-        if (plane.eigens[0] < plane_thresh)
-        {
-            for (int i = 0; i < points.size(); i++)
-            {
-                Eigen::Matrix<double, 6, 3> J;
-                Eigen::Matrix3d F;
-                for (int m = 0; m < 3; m++)
-                {
-                    if (m != (int)evalsMin)
-                    {
-                        Eigen::Matrix<double, 1, 3> F_m =
-                            (points[i].point - plane.center).transpose() /
-                            ((plane.points_size) * (evalsReal[evalsMin] - evalsReal[m])) *
-                            (evecs.real().col(m) * evecs.real().col(evalsMin).transpose() +
-                             evecs.real().col(evalsMin) * evecs.real().col(m).transpose());
-                        F.row(m) = F_m;
-                    }
-                    else
-                    {
-                        Eigen::Matrix<double, 1, 3> F_m;
-                        F_m << 0, 0, 0;
-                        F.row(m) = F_m;
-                    }
-                }
-                J.block<3, 3>(0, 0) = evecs.real() * F;
-                J.block<3, 3>(3, 0) = J_Q;
-                plane.plane_cov += J * points[i].cov * J.transpose();
-            }
-            plane.is_valid = true;
-        }
-        else
-        {
-            plane.is_valid = false;
-        }
-    }
-
-    void VoxelMap::pack(const std::vector<PointWithCov> &input_points)
-    {
-        sub_map.clear();
-        uint plsize = input_points.size();
-        for (uint i = 0; i < plsize; i++)
-        {
-            const PointWithCov &p_v = input_points[i];
-            VoxelKey k = index(p_v.point);
-            auto it = feat_map.find(k);
-            auto sub_it = sub_map.find(k);
-            if (it == feat_map.end())
-            {
-                if (sub_it == sub_map.end())
-                {
-                    // sub_map[k] = VoxelGrid();
-                    sub_map[k].type = SubVoxelType::INSERT;
-                }
-                sub_map[k].points.push_back(p_v);
-            }
-            else
-            {
-                if (!feat_map[k].tree->update_enable)
-                    continue;
-                if (sub_it == sub_map.end())
-                {
-                    // sub_map[k] = VoxelGrid();
-                    sub_map[k].type = SubVoxelType::UPDATE;
-                    sub_map[k].it = feat_map[k].it;
-                }
-                sub_map[k].points.push_back(p_v);
-            }
-        }
-    }
-
-    void VoxelMap::insert(const std::vector<PointWithCov> &input_points)
-    {
-        pack(input_points);
-
-        for (auto &pair : sub_map)
-        {
-            if (pair.second.type == SubVoxelType::INSERT)
-            {
-                cache.push_front(pair.first);
-                pair.second.it = cache.begin();
-                // feat_map[pair.first] = VoxelValue();
-                feat_map[pair.first].tree = std::make_shared<OctoTree>(max_layer, 0, update_size_threshes, max_point_thresh, plane_thresh);
-                feat_map[pair.first].it = pair.second.it;
-                feat_map[pair.first].tree->center = Eigen::Vector3d((0.5 + pair.first.x) * voxel_size, (0.5 + pair.first.y) * voxel_size, (0.5 + pair.first.z) * voxel_size);
-                feat_map[pair.first].tree->quater_length = voxel_size / 4;
-                feat_map[pair.first].tree->insert(pair.second.points);
-                if (cache.size() > capacity)
-                {
-                    feat_map.erase(cache.back());
-                    cache.pop_back();
-                }
-            }
-            else
-            {
-                cache.splice(cache.begin(), cache, pair.second.it);
-                feat_map[pair.first].tree->insert(pair.second.points);
-            }
-        }
+        featmap.clear();
     }
 
     VoxelKey VoxelMap::index(const Eigen::Vector3d &point)
@@ -289,41 +145,61 @@ namespace lio
         return VoxelKey(static_cast<int64_t>(idx(0)), static_cast<int64_t>(idx(1)), static_cast<int64_t>(idx(2)));
     }
 
-    void VoxelMap::buildResidual(ResidualData &info, std::shared_ptr<OctoTree> oct_tree)
+    void VoxelMap::build(std::vector<PointWithCov> &pvs)
     {
-        if (oct_tree->plane.is_valid)
+        for (PointWithCov &pv : pvs)
         {
-            Eigen::Vector3d p_world_to_center = info.point_world - oct_tree->plane.center;
-            info.plane_center = oct_tree->plane.center;
-            info.plane_norm = oct_tree->plane.normal;
-            info.plane_cov = oct_tree->plane.plane_cov;
-            info.residual = info.plane_norm.transpose() * p_world_to_center;
-            double dis_to_plane = std::abs(info.residual);
-            Eigen::Matrix<double, 1, 6> J_nq;
-            J_nq.block<1, 3>(0, 0) = p_world_to_center;
-            J_nq.block<1, 3>(0, 3) = -info.plane_norm;
-            double sigma_l = J_nq * info.plane_cov * J_nq.transpose();
-            sigma_l += info.plane_norm.transpose() * info.cov * info.plane_norm;
-            if (dis_to_plane < info.sigma_num * sqrt(sigma_l))
+            VoxelKey k = index(pv.point);
+            auto it = featmap.find(k);
+            if (it == featmap.end())
             {
-                // std::cout << "filtered" << std::endl;
-                info.is_valid = true;
+                featmap[k] = std::make_shared<VoxelGrid>(max_point_thresh, update_point_thresh, plane_thresh, k, this);
             }
+            featmap[k]->addPoint(pv);
         }
-        else
+
+        for (auto it = featmap.begin(); it != featmap.end(); it++)
         {
-            if (info.current_layer < max_layer - 1)
+            it->second->updatePlane();
+        }
+    }
+
+    void VoxelMap::update(std::vector<PointWithCov> &pvs)
+    {
+
+        for (PointWithCov &pv : pvs)
+        {
+            VoxelKey k = index(pv.point);
+            auto it = featmap.find(k);
+            if (it == featmap.end())
             {
-                for (size_t i = 0; i < 8; i++)
-                {
-                    if (oct_tree->leaves[i] == nullptr)
-                        continue;
-                    info.current_layer += 1;
-                    buildResidual(info, oct_tree->leaves[i]);
-                    if (info.is_valid)
-                        break;
-                }
+                featmap[k] = std::make_shared<VoxelGrid>(max_point_thresh, update_point_thresh, plane_thresh, k, this);
+            }
+            featmap[k]->pushPoint(pv);
+        }
+    }
+
+    void VoxelMap::buildResidual(ResidualData &data, std::shared_ptr<VoxelGrid> voxel_grid)
+    {
+        data.is_valid = false;
+        if (voxel_grid->is_plane)
+        {
+            Eigen::Vector4d homo_point(data.point_world.x(), data.point_world.y(), data.point_world.z(), 1.0);
+            data.plane_param = voxel_grid->plane->plane_param;
+            data.plane_cov = voxel_grid->plane->plane_cov;
+            data.residual = homo_point.dot(data.plane_param);
+            double sigma_l = homo_point.transpose() * data.plane_cov * homo_point;
+            Eigen::Vector3d plane_norm(data.plane_param(0), data.plane_param(1), data.plane_param(2));
+            sigma_l += plane_norm.transpose() * data.cov_world * plane_norm;
+            if (std::abs(data.residual) > 3.0 * sqrt(sigma_l))
+            {
+                data.is_valid = false;
+            }
+            else
+            {
+                data.is_valid = true;
             }
         }
     }
+
 } // namespace lio
