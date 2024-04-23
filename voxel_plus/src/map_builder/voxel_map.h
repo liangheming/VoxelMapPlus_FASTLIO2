@@ -45,7 +45,7 @@ namespace lio
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         Eigen::Vector3d mean = Eigen::Vector3d::Zero();
         Eigen::Matrix3d ppt = Eigen::Matrix3d::Zero();
-        Eigen::Vector3d norm;
+        Eigen::Vector3d norm = Eigen::Vector3d::Zero();
         Eigen::Matrix<double, 6, 6> cov;
         int n = 0;
     };
@@ -79,6 +79,8 @@ namespace lio
 
         void pushPoint(const PointWithCov &pv);
 
+        void merge();
+
     public:
         static uint64_t count;
         int max_point_thresh;
@@ -94,6 +96,7 @@ namespace lio
         VoxelKey position;
         VoxelMap *map;
         std::shared_ptr<Plane> plane;
+        Eigen::Vector3d center;
     };
 
     typedef std::unordered_map<VoxelKey, std::shared_ptr<VoxelGrid>, VoxelKey::Hasher> Featmap;

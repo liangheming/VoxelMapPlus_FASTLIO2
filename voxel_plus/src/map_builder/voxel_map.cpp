@@ -9,8 +9,7 @@ namespace lio
         : max_point_thresh(_max_point_thresh),
           update_point_thresh(_update_point_thresh),
           plane_thresh(_plane_thresh),
-          position(_position.x, position.y, position.z),
-          map(_map)
+          position(_position.x, _position.y, _position.z)
     {
         id = VoxelGrid::count++;
         group_id = id;
@@ -20,6 +19,7 @@ namespace lio
         newly_add_point = 0;
         plane = std::make_shared<Plane>();
         update_enable = true;
+        map = _map;
     }
 
     void VoxelGrid::addToPlane(const PointWithCov &pv)
@@ -65,7 +65,7 @@ namespace lio
                 }
                 else
                 {
-                    // do merge
+                    merge();
                 }
             }
             else
@@ -128,6 +128,55 @@ namespace lio
         if (axis_distance < 0.0)
             plane_norm = -plane_norm;
         plane->norm = plane_norm;
+        center = plane->mean;
+    }
+
+    void VoxelGrid::merge()
+    {
+        std::vector<VoxelKey> near;
+        near.push_back(VoxelKey(position.x - 1, position.y, position.z));
+        near.push_back(VoxelKey(position.x, position.y - 1, position.z));
+        near.push_back(VoxelKey(position.x, position.y, position.z - 1));
+        near.push_back(VoxelKey(position.x + 1, position.y, position.z));
+        near.push_back(VoxelKey(position.x, position.y + 1, position.z));
+        near.push_back(VoxelKey(position.x, position.y, position.z + 1));
+
+        for (VoxelKey &k : near)
+        {
+            auto it = map->featmap.find(k);
+            if (it != map->featmap.end())
+            {
+                std::shared_ptr<VoxelGrid> near_node = it->second;
+                if (near_node->group_id == group_id || near_node->update_enable || !near_node->is_plane)
+                    continue;
+                double norm_distance = 1.0 - near_node->plane->norm.dot(plane->norm);
+                double axis_distance = std::abs(near_node->plane->norm.dot(near_node->plane->mean) - plane->norm.dot(plane->mean));
+               
+                if (norm_distance > 0.08 || axis_distance > 0.1 * map->voxel_size)
+                    continue;
+                double tn0 = plane->cov.block<3, 3>(0, 0).trace(),
+                       tm0 = plane->cov.block<3, 3>(3, 3).trace(),
+                       tn1 = near_node->plane->cov.block<3, 3>(0, 0).trace(),
+                       tm1 = near_node->plane->cov.block<3, 3>(3, 3).trace();
+                double tc0 = tn0 + tm0, tc1 = tn1 + tm1;
+                Eigen::Vector3d new_mean = tm0 * near_node->plane->mean + tm1 * plane->mean / (tm0 + tm1);
+                Eigen::Vector3d new_norm = tn0 * near_node->plane->norm + tn1 * plane->norm / (tn0 + tn1);
+                Eigen::Matrix<double, 6, 6> new_cov = (tc0 * tc0 * near_node->plane->cov + tc1 * tc1 * plane->cov) / ((tc0 + tc1) * (tc0 + tc1));
+
+                near_node->group_id = group_id;
+
+                if (-new_mean.dot(new_norm) < 0.0)
+                    new_norm = -new_norm;
+                
+                plane->mean = new_mean;
+                plane->norm = new_norm;
+                plane->cov = new_cov;
+
+                near_node->plane->mean = new_mean;
+                near_node->plane->norm = new_norm;
+                near_node->plane->cov = new_cov;
+            }
+        }
     }
 
     VoxelMap::VoxelMap(int _max_point_thresh, int _update_point_thresh, double _plane_thresh, double _voxel_size) : max_point_thresh(_max_point_thresh), update_point_thresh(_update_point_thresh), plane_thresh(_plane_thresh), voxel_size(_voxel_size)
