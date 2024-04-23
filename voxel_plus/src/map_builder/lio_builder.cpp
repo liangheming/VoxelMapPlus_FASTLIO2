@@ -274,6 +274,7 @@ namespace lio
         shared_state.H.setZero();
         shared_state.b.setZero();
         Eigen::Matrix<double, 1, 12> J;
+        Eigen::Matrix<double, 1, 6> Jn;
 
         int effect_num = 0;
 
@@ -283,19 +284,15 @@ namespace lio
                 continue;
             effect_num++;
             J.setZero();
-            Eigen::Vector4d homo_point(data_group.residual_info[i].point_world(0),
-                                       data_group.residual_info[i].point_world(1),
-                                       data_group.residual_info[i].point_world(2),
-                                       1.0);
-            Eigen::Vector3d plane_norm(data_group.residual_info[i].plane_param(0),
-                                       data_group.residual_info[i].plane_param(1),
-                                       data_group.residual_info[i].plane_param(2));
-            double r_cov = homo_point.transpose() * data_group.residual_info[i].plane_cov * homo_point;
-            r_cov += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
-            // // std::cout << "r_info" << 1.0 / r_cov << std::endl;
-            // std::cout << "r_cov" << r_cov << std::endl;
 
-            double r_info = r_cov < 0.001 ? 1000 : 1.0 / r_cov;
+            Eigen::Vector3d plane_norm = data_group.residual_info[i].plane_norm;
+
+            Jn.block<1, 3>(0, 0) = (data_group.residual_info[i].point_world - data_group.residual_info[i].plane_mean).transpose();
+            Jn.block<1, 3>(0, 3) = -plane_norm.transpose();
+            double r_cov = Jn * data_group.residual_info[i].plane_cov * Jn.transpose();
+            r_cov += plane_norm.transpose() * r_wl * data_group.residual_info[i].cov_lidar * r_wl.transpose() * plane_norm;
+
+            double r_info = r_cov < 0.0002 ? 5000 : 1.0 / r_cov;
             J.block<1, 3>(0, 0) = plane_norm.transpose();
             J.block<1, 3>(0, 3) = -plane_norm.transpose() * state.rot * Sophus::SO3d::hat(state.rot_ext * data_group.residual_info[i].point_lidar + state.pos_ext);
             if (config.estimate_ext)
@@ -308,6 +305,7 @@ namespace lio
         }
         if (effect_num < 1)
             std::cout << "NO EFFECTIVE POINT";
+        // std::cout << "==================: " << effect_num << std::endl;
     }
 
 }

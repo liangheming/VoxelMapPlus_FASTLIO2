@@ -4,7 +4,7 @@ imu_topic: /livox/imu
 map_frame: lidar
 body_frame: body
 max_point_thresh: 100
-update_size_threshes: 10
+update_size_threshes: 20
 
 scan_resolution: 0.1
-voxel_size: 0.25
+voxel_size: 0.4

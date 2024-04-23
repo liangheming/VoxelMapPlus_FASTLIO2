@@ -45,8 +45,8 @@ namespace lio
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         Eigen::Vector3d mean = Eigen::Vector3d::Zero();
         Eigen::Matrix3d ppt = Eigen::Matrix3d::Zero();
-        Eigen::Vector4d plane_param = Eigen::Vector4d::Zero();
-        Eigen::Matrix4d plane_cov = Eigen::Matrix4d::Zero();
+        Eigen::Vector3d norm;
+        Eigen::Matrix<double, 6, 6> cov;
         int n = 0;
     };
 
@@ -55,9 +55,9 @@ namespace lio
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         Eigen::Vector3d point_lidar;
         Eigen::Vector3d point_world;
-        Eigen::Vector4d plane_param;
-        Eigen::Matrix4d plane_cov;
-
+        Eigen::Vector3d plane_mean;
+        Eigen::Vector3d plane_norm;
+        Eigen::Matrix<double, 6, 6> plane_cov;
         Eigen::Matrix3d cov_lidar;
         Eigen::Matrix3d cov_world;
         bool is_valid = false;
@@ -88,6 +88,7 @@ namespace lio
         bool is_plane;
         bool update_enable;
         int newly_add_point;
+        u_int64_t id;
         uint64_t group_id;
         std::vector<PointWithCov> temp_points;
         VoxelKey position;
@@ -108,7 +109,7 @@ namespace lio
 
         void update(std::vector<PointWithCov> &pvs);
 
-        void buildResidual(ResidualData &data, std::shared_ptr<VoxelGrid> voxel_grid);
+        bool buildResidual(ResidualData &data, std::shared_ptr<VoxelGrid> voxel_grid);
 
     public:
         int max_point_thresh;

@@ -12,7 +12,8 @@ namespace lio
           position(_position.x, position.y, position.z),
           map(_map)
     {
-        group_id = VoxelGrid::count++;
+        id = VoxelGrid::count++;
+        group_id = id;
         is_init = false;
         is_plane = false;
         temp_points.reserve(max_point_thresh);
@@ -23,7 +24,7 @@ namespace lio
 
     void VoxelGrid::addToPlane(const PointWithCov &pv)
     {
-        plane->mean = plane->mean + (pv.point - plane->mean) / (plane->n + 1.0);
+        plane->mean += (pv.point - plane->mean) / (plane->n + 1.0);
         plane->ppt += pv.point * pv.point.transpose();
         plane->n += 1;
     }
@@ -56,7 +57,7 @@ namespace lio
                         updatePlane();
                         newly_add_point = 0;
                     }
-                    if (temp_points.size() > max_point_thresh)
+                    if (temp_points.size() >= max_point_thresh)
                     {
                         update_enable = false;
                         std::vector<PointWithCov>().swap(temp_points);
@@ -79,7 +80,7 @@ namespace lio
                         updatePlane();
                         newly_add_point = 0;
                     }
-                    if (temp_points.size() > max_point_thresh)
+                    if (temp_points.size() >= max_point_thresh)
                     {
                         update_enable = false;
                         std::vector<PointWithCov>().swap(temp_points);
@@ -110,7 +111,7 @@ namespace lio
         for (PointWithCov &pv : temp_points)
         {
 
-            Eigen::Matrix<double, 4, 3> J;
+            Eigen::Matrix<double, 6, 3> J;
             Eigen::Matrix3d F = Eigen::Matrix3d::Zero();
             for (int m = 1; m < 3; m++)
             {
@@ -120,18 +121,13 @@ namespace lio
                 F.row(m) = F_m;
             }
             J.block<3, 3>(0, 0) = evecs * F;
-            // J.block<1, 3>(3, 0) = plane_norm.transpose() * J_Q + plane->mean.transpose() * J.block<3, 3>(0, 0);
-            J.block<1, 3>(3, 0) = plane_norm.transpose() * J_Q;
-            plane->plane_cov += J * pv.cov * J.transpose();
+            J.block<3, 3>(3, 0) = J_Q;
+            plane->cov += J * pv.cov * J.transpose();
         }
         double axis_distance = -plane->mean.dot(plane_norm);
-        if (axis_distance < 0)
-        {
+        if (axis_distance < 0.0)
             plane_norm = -plane_norm;
-            axis_distance = -axis_distance;
-        }
-        plane->plane_param.head(3) = plane_norm;
-        plane->plane_param(3) = axis_distance;
+        plane->norm = plane_norm;
     }
 
     VoxelMap::VoxelMap(int _max_point_thresh, int _update_point_thresh, double _plane_thresh, double _voxel_size) : max_point_thresh(_max_point_thresh), update_point_thresh(_update_point_thresh), plane_thresh(_plane_thresh), voxel_size(_voxel_size)
@@ -179,27 +175,28 @@ namespace lio
         }
     }
 
-    void VoxelMap::buildResidual(ResidualData &data, std::shared_ptr<VoxelGrid> voxel_grid)
+    bool VoxelMap::buildResidual(ResidualData &data, std::shared_ptr<VoxelGrid> voxel_grid)
     {
         data.is_valid = false;
         if (voxel_grid->is_plane)
         {
-            Eigen::Vector4d homo_point(data.point_world.x(), data.point_world.y(), data.point_world.z(), 1.0);
-            data.plane_param = voxel_grid->plane->plane_param;
-            data.plane_cov = voxel_grid->plane->plane_cov;
-            data.residual = homo_point.dot(data.plane_param);
-            double sigma_l = homo_point.transpose() * data.plane_cov * homo_point;
-            Eigen::Vector3d plane_norm(data.plane_param(0), data.plane_param(1), data.plane_param(2));
-            sigma_l += plane_norm.transpose() * data.cov_world * plane_norm;
-            if (std::abs(data.residual) > 3.0 * sqrt(sigma_l))
-            {
-                data.is_valid = false;
-            }
-            else
-            {
+            Eigen::Vector3d p2m = (data.point_world - voxel_grid->plane->mean);
+            data.plane_norm = voxel_grid->plane->norm;
+            data.plane_mean = voxel_grid->plane->mean;
+            data.residual = data.plane_norm.dot(p2m);
+            Eigen::Matrix<double, 1, 6> J_nq;
+            J_nq.block<1, 3>(0, 0) = p2m;
+            J_nq.block<1, 3>(0, 3) = -data.plane_norm;
+            double sigma_l = J_nq * data.plane_cov * J_nq.transpose();
+            sigma_l += data.plane_norm.transpose() * data.cov_world * data.plane_norm;
+            if (std::abs(data.residual) < 3.0 * sqrt(sigma_l))
                 data.is_valid = true;
-            }
+            // else
+            // {
+            //     std::cout << "filterd" << std::endl;
+            // }
         }
+        return data.is_valid;
     }
 
 } // namespace lio
