@@ -141,3 +141,76 @@ void calcVectQuation(const Eigen::Vector3d &x_vec, const Eigen::Vector3d &y_vec,
     q.y = eq.y();
     q.z = eq.z();
 }
+
+void calcVectQuation(const Eigen::Vector3d &norm_vec, geometry_msgs::Quaternion &q)
+{
+    double a = norm_vec(0);
+    double b = norm_vec(1);
+    double c = norm_vec(2);
+    double theta_half = acos(c) / 2;
+    double t2 = sqrt(a * a + b * b);
+    b = b / t2;
+    a = a / t2;
+    q.w = cos(theta_half);
+    q.x = b * sin(theta_half);
+    q.y = -1 * a * sin(theta_half);
+    q.z = 0.0;
+}
+
+visualization_msgs::MarkerArray voxel2MarkerArray(std::shared_ptr<lio::VoxelMap> map, const std::string &frame_id, const double &timestamp, int max_capacity, double voxel_size)
+{
+    visualization_msgs::MarkerArray voxel_plane;
+    int size = std::min(static_cast<int>(map->featmap.size()), max_capacity);
+    voxel_plane.markers.reserve(size);
+    int count = 0;
+    for (auto &kv : map->featmap)
+    {
+        if (count >= size)
+            break;
+
+        if (!kv.second->is_plane || kv.second->update_enable)
+            continue;
+        std::shared_ptr<lio::VoxelGrid> grid = kv.second;
+        Eigen::Vector3d grid_center = grid->center;
+        bool merged = false;
+        if (grid->id != grid->group_id)
+            merged = true;
+        double trace = grid->plane->cov.block<3, 3>(0, 0).trace();
+        if (trace >= 0.25)
+            trace = 0.25;
+        trace = trace * (1.0 / 0.25);
+        trace = pow(trace, 0.2);
+        uint8_t r, g, b;
+        mapJet(trace, 0, 1, r, g, b);
+
+        Eigen::Vector3d plane_rgb(r / 256.0, g / 256.0, b / 256.0);
+        double alpha = 0.8;
+
+        visualization_msgs::Marker plane;
+        plane.header.frame_id = frame_id;
+        plane.header.stamp = ros::Time().fromSec(timestamp);
+        plane.ns = "plane";
+        plane.id = count++;
+        if (!merged)
+            plane.type = visualization_msgs::Marker::CYLINDER;
+        else
+            plane.type = visualization_msgs::Marker::CUBE;
+        plane.action = visualization_msgs::Marker::ADD;
+        plane.pose.position.x = grid_center[0];
+        plane.pose.position.y = grid_center[1];
+        plane.pose.position.z = grid_center[2];
+        geometry_msgs::Quaternion q;
+        calcVectQuation(grid->plane->norm, q);
+        plane.pose.orientation = q;
+        plane.scale.x = voxel_size;
+        plane.scale.y = voxel_size;
+        plane.scale.z = 0.01;
+        plane.color.a = alpha;
+        plane.color.r = plane_rgb[0];
+        plane.color.g = plane_rgb[1];
+        plane.color.b = plane_rgb[2];
+        plane.lifetime = ros::Duration();
+        voxel_plane.markers.push_back(plane);
+    }
+    return voxel_plane;
+}

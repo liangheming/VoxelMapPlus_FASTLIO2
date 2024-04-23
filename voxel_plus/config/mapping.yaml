@@ -8,3 +8,4 @@ update_size_threshes: 20
 
 scan_resolution: 0.1
 voxel_size: 0.4
+publish_voxel_map: true

@@ -17,6 +17,7 @@ struct NodeConfig
     double range_min = 0.5;
     double range_max = 20.0;
     int filter_num = 3;
+    bool publish_voxel_map = false;
 };
 
 struct NodeGroupData
@@ -40,6 +41,9 @@ public:
         initPublishers();
         map_builder.loadConfig(lio_config);
         main_loop = nh.createTimer(ros::Duration(0.02), &LIONode::mainCB, this);
+        voxel_map_loop = nh.createTimer(ros::Duration(5.0), &LIONode::voxelTimerCB, this, false, false);
+        if (config.publish_voxel_map)
+            voxel_map_loop.start();
     }
 
     void loadConfig()
@@ -53,6 +57,7 @@ public:
         nh.param<int>("filter_num", config.filter_num, 3);
         nh.param<double>("range_min", config.range_min, 0.5);
         nh.param<double>("range_max", config.range_max, 20.0);
+        nh.param<bool>("publish_voxel_map", config.publish_voxel_map, false);
 
         nh.param<double>("scan_resolution", lio_config.scan_resolution, 0.2);
         nh.param<double>("voxel_size", lio_config.voxel_size, 0.5);
@@ -86,6 +91,7 @@ public:
         odom_pub = nh.advertise<nav_msgs::Odometry>("slam_odom", 1000);
         body_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("body_cloud", 1000);
         world_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("world_cloud", 1000);
+        voxel_map_pub = nh.advertise<visualization_msgs::MarkerArray>("voxel_map", 1000);
     }
 
     void imuCB(const sensor_msgs::Imu::ConstPtr msg)
@@ -162,7 +168,15 @@ public:
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr world_cloud = map_builder.lidarToWorld(sync_pack.cloud);
         publishCloud(world_cloud_pub, world_cloud, config.map_frame, sync_pack.cloud_end_time);
     }
-
+    void voxelTimerCB(const ros::TimerEvent &event)
+    {
+        std::shared_ptr<lio::VoxelMap> voxel_map = map_builder.map;
+        if (voxel_map->featmap.size() < 10)
+            return;
+        if (voxel_map_pub.getNumSubscribers() < 1)
+            return;
+        voxel_map_pub.publish(voxel2MarkerArray(voxel_map, config.map_frame, ros::Time::now().toSec(), 10000, voxel_map->voxel_size / 2.0));
+    }
     void publishCloud(ros::Publisher &pub, pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud, std::string &frame_id, const double &time)
     {
         if (pub.getNumSubscribers() < 1)
@@ -177,6 +191,7 @@ public:
     NodeGroupData group_data;
     lio::SyncPackage sync_pack;
     ros::Timer main_loop;
+    ros::Timer voxel_map_loop;
 
     std::string map_frame;
     std::string body_frame;
@@ -187,6 +202,7 @@ public:
     ros::Publisher odom_pub;
     ros::Publisher body_cloud_pub;
     ros::Publisher world_cloud_pub;
+    ros::Publisher voxel_map_pub;
 
     lio::LIOBuilder map_builder;
 
