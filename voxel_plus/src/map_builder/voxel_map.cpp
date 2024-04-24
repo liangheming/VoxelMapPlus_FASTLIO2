@@ -5,6 +5,9 @@ namespace lio
 
     uint64_t VoxelGrid::count = 0;
 
+    double VoxelGrid::merge_thresh_for_angle = 0.1;
+    double VoxelGrid::merge_thresh_for_distance = 0.04;
+
     VoxelGrid::VoxelGrid(int _max_point_thresh, int _update_point_thresh, double _plane_thresh, VoxelKey _position, VoxelMap *_map)
         : max_point_thresh(_max_point_thresh),
           update_point_thresh(_update_point_thresh),
@@ -152,7 +155,7 @@ namespace lio
                 double norm_distance = 1.0 - near_node->plane->norm.dot(plane->norm);
                 double axis_distance = std::abs(near_node->plane->norm.dot(near_node->plane->mean) - plane->norm.dot(plane->mean));
 
-                if (norm_distance > 0.08 || axis_distance > 0.1 * map->voxel_size)
+                if (norm_distance > merge_thresh_for_angle || axis_distance > merge_thresh_for_distance)
                     continue;
                 double tn0 = plane->cov.block<3, 3>(0, 0).trace(),
                        tm0 = plane->cov.block<3, 3>(3, 3).trace(),
@@ -181,9 +184,10 @@ namespace lio
         }
     }
 
-    VoxelMap::VoxelMap(int _max_point_thresh, int _update_point_thresh, double _plane_thresh, double _voxel_size) : max_point_thresh(_max_point_thresh), update_point_thresh(_update_point_thresh), plane_thresh(_plane_thresh), voxel_size(_voxel_size)
+    VoxelMap::VoxelMap(int _max_point_thresh, int _update_point_thresh, double _plane_thresh, double _voxel_size, int _capacity) : max_point_thresh(_max_point_thresh), update_point_thresh(_update_point_thresh), plane_thresh(_plane_thresh), voxel_size(_voxel_size), capacity(_capacity)
     {
         featmap.clear();
+        cache.clear();
     }
 
     VoxelKey VoxelMap::index(const Eigen::Vector3d &point)
@@ -201,7 +205,20 @@ namespace lio
             if (it == featmap.end())
             {
                 featmap[k] = std::make_shared<VoxelGrid>(max_point_thresh, update_point_thresh, plane_thresh, k, this);
+                cache.push_front(k);
+                featmap[k]->cache_it = cache.begin();
+
+                if (cache.size() > capacity)
+                {
+                    featmap.erase(cache.back());
+                    cache.pop_back();
+                }
             }
+            else
+            {
+                cache.splice(cache.begin(), cache, featmap[k]->cache_it);
+            }
+
             featmap[k]->addPoint(pv);
         }
 
@@ -221,6 +238,17 @@ namespace lio
             if (it == featmap.end())
             {
                 featmap[k] = std::make_shared<VoxelGrid>(max_point_thresh, update_point_thresh, plane_thresh, k, this);
+                cache.push_front(k);
+                featmap[k]->cache_it = cache.begin();
+                if (cache.size() > capacity)
+                {
+                    featmap.erase(cache.back());
+                    cache.pop_back();
+                }
+            }
+            else
+            {
+                cache.splice(cache.begin(), cache, featmap[k]->cache_it);
             }
             featmap[k]->pushPoint(pv);
         }
@@ -242,10 +270,6 @@ namespace lio
             sigma_l += data.plane_norm.transpose() * data.cov_world * data.plane_norm;
             if (std::abs(data.residual) < 3.0 * sqrt(sigma_l))
                 data.is_valid = true;
-            // else
-            // {
-            //     std::cout << "filterd" << std::endl;
-            // }
         }
         return data.is_valid;
     }

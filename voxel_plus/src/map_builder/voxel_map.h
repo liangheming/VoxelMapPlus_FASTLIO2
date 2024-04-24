@@ -97,6 +97,9 @@ namespace lio
         VoxelMap *map;
         std::shared_ptr<Plane> plane;
         Eigen::Vector3d center;
+        std::list<VoxelKey>::iterator cache_it;
+        static double merge_thresh_for_angle;
+        static double merge_thresh_for_distance;
     };
 
     typedef std::unordered_map<VoxelKey, std::shared_ptr<VoxelGrid>, VoxelKey::Hasher> Featmap;
@@ -104,7 +107,7 @@ namespace lio
     class VoxelMap
     {
     public:
-        VoxelMap(int _max_point_thresh, int _update_point_thresh, double _plane_thresh, double _voxel_size);
+        VoxelMap(int _max_point_thresh, int _update_point_thresh, double _plane_thresh, double _voxel_size, int capacity = 2000000);
 
         VoxelKey index(const Eigen::Vector3d &point);
 
@@ -120,6 +123,8 @@ namespace lio
         double plane_thresh;
         double voxel_size;
         Featmap featmap;
+        std::list<VoxelKey> cache;
+        int capacity;
     };
 
 } // namespace lio

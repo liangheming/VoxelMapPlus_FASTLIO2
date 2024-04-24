@@ -18,6 +18,7 @@ struct NodeConfig
     double range_max = 20.0;
     int filter_num = 3;
     bool publish_voxel_map = false;
+    int publish_voxel_num = 1000;
 };
 
 struct NodeGroupData
@@ -58,11 +59,18 @@ public:
         nh.param<double>("range_min", config.range_min, 0.5);
         nh.param<double>("range_max", config.range_max, 20.0);
         nh.param<bool>("publish_voxel_map", config.publish_voxel_map, false);
+        nh.param<int>("publish_voxel_num", config.publish_voxel_num, 1000);
 
-        nh.param<double>("scan_resolution", lio_config.scan_resolution, 0.2);
-        nh.param<double>("voxel_size", lio_config.voxel_size, 0.5);
+        nh.param<double>("scan_resolution", lio_config.scan_resolution, 0.1);
+        nh.param<double>("voxel_size", lio_config.voxel_size, 0.4);
+
+        nh.param<double>("merge_thresh_for_angle", lio_config.merge_thresh_for_angle, 0.1);
+        nh.param<double>("merge_thresh_for_distance", lio_config.merge_thresh_for_distance, 0.04);
+
         nh.param<int>("max_point_thresh", lio_config.max_point_thresh, 100);
         nh.param<int>("update_size_thresh", lio_config.update_size_thresh, 10);
+
+        nh.param<int>("map_capacity", lio_config.map_capacity, 100000);
         nh.param<bool>("gravity_align", lio_config.gravity_align, true);
         nh.param<int>("imu_init_num", lio_config.imu_init_num, 20);
         nh.param<double>("na", lio_config.na, 0.01);
@@ -171,11 +179,11 @@ public:
     void voxelTimerCB(const ros::TimerEvent &event)
     {
         std::shared_ptr<lio::VoxelMap> voxel_map = map_builder.map;
-        if (voxel_map->featmap.size() < 10)
+        if (voxel_map->cache.size() < 10)
             return;
         if (voxel_map_pub.getNumSubscribers() < 1)
             return;
-        voxel_map_pub.publish(voxel2MarkerArray(voxel_map, config.map_frame, ros::Time::now().toSec(), 10000, voxel_map->voxel_size / 2.0));
+        voxel_map_pub.publish(voxel2MarkerArray(voxel_map, config.map_frame, ros::Time::now().toSec(), config.publish_voxel_num, voxel_map->voxel_size / 2.0));
     }
     void publishCloud(ros::Publisher &pub, pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud, std::string &frame_id, const double &time)
     {

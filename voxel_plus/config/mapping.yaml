@@ -3,9 +3,17 @@ imu_topic: /livox/imu
 
 map_frame: lidar
 body_frame: body
-max_point_thresh: 100
-update_size_threshes: 20
+
+publish_voxel_map: true
+publish_voxel_num: 2000
+
 
 scan_resolution: 0.1
 voxel_size: 0.4
-publish_voxel_map: true
+map_capacity: 100000
+max_point_thresh: 100
+update_size_threshes: 20
+merge_thresh_for_angle: 0.1
+merge_thresh_for_distance: 0.04
+
+

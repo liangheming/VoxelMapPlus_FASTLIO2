@@ -35,6 +35,10 @@ namespace lio
 
         double ranging_cov = 0.04;
         double angle_cov = 0.1;
+
+        double merge_thresh_for_angle = 0.1;
+        double merge_thresh_for_distance = 0.04;
+        int map_capacity = 100000;
     };
     struct LIODataGroup
     {
@@ -67,7 +71,7 @@ namespace lio
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr lidarToWorld(const pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud);
 
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr lidarToBody(const pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud);
-        
+
     public:
         kf::IESKF kf;
         LIOConfig config;

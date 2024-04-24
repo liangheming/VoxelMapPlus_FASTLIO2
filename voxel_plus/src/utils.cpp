@@ -154,17 +154,18 @@ void calcVectQuation(const Eigen::Vector3d &norm_vec, geometry_msgs::Quaternion 
 visualization_msgs::MarkerArray voxel2MarkerArray(std::shared_ptr<lio::VoxelMap> map, const std::string &frame_id, const double &timestamp, int max_capacity, double voxel_size)
 {
     visualization_msgs::MarkerArray voxel_plane;
-    int size = std::min(static_cast<int>(map->featmap.size()), max_capacity);
+    int size = std::min(static_cast<int>(map->cache.size()), max_capacity);
+
     voxel_plane.markers.reserve(size);
     int count = 0;
-    for (auto &kv : map->featmap)
+    for (auto &k : map->cache)
     {
         if (count >= size)
             break;
-
-        if (!kv.second->is_plane || kv.second->update_enable)
+        std::shared_ptr<lio::VoxelGrid> grid = map->featmap[k];
+        if (!grid->is_plane || grid->update_enable)
             continue;
-        std::shared_ptr<lio::VoxelGrid> grid = kv.second;
+
         Eigen::Vector3d grid_center = grid->center;
 
         double trace = grid->plane->cov.block<3, 3>(0, 0).trace();
@@ -203,5 +204,6 @@ visualization_msgs::MarkerArray voxel2MarkerArray(std::shared_ptr<lio::VoxelMap>
         plane.lifetime = ros::Duration();
         voxel_plane.markers.push_back(plane);
     }
+    std::cout << "published voxel count: " << count << std::endl;
     return voxel_plane;
 }

@@ -13,7 +13,10 @@ namespace lio
         if (config.scan_resolution > 0.0)
             scan_filter.setLeafSize(config.scan_resolution, config.scan_resolution, config.scan_resolution);
 
-        map = std::make_shared<VoxelMap>(config.max_point_thresh, config.update_size_thresh, config.plane_thresh, config.voxel_size);
+        map = std::make_shared<VoxelMap>(config.max_point_thresh, config.update_size_thresh, config.plane_thresh, config.voxel_size, config.map_capacity);
+
+        VoxelGrid::merge_thresh_for_angle = config.merge_thresh_for_angle;
+        VoxelGrid::merge_thresh_for_distance = config.merge_thresh_for_distance;
 
         lidar_cloud.reset(new pcl::PointCloud<pcl::PointXYZINormal>);
         kf.set_share_function(
