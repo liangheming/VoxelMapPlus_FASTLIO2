@@ -204,6 +204,5 @@ visualization_msgs::MarkerArray voxel2MarkerArray(std::shared_ptr<lio::VoxelMap>
         plane.lifetime = ros::Duration();
         voxel_plane.markers.push_back(plane);
     }
-    std::cout << "published voxel count: " << count << std::endl;
     return voxel_plane;
 }
