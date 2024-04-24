@@ -1,5 +1,5 @@
 # FastLIO2 With VoxelMapPlus 
-
+![image](https://github.com/liangheming/VoxelMapPlus_FASTLIO2/blob/main/resources/demo.png)
 
 ## 主要工作
 1. 基于[FASTLIO2](https://github.com/hku-mars/FAST_LIO)和[VoxelMap](https://github.com/hku-mars/VoxelMap)
