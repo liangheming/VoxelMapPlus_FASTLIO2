@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="std_matcher" type="temp_node" name="temp_node" output="screen" />
+</launch>
