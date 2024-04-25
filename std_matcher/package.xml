@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>voxel_plus</name>
+  <name>std_matcher</name>
   <version>0.0.0</version>
-  <description>The voxel_plus package</description>
-  <maintainer email="zhouzhou@todo.todo">zhouzhou</maintainer>
+  <description>The std_matcher package</description>
 
+  <maintainer email="zhouzhou@todo.todo">zhouzhou</maintainer>
 
   <license>TODO</license>
 
@@ -14,15 +14,7 @@
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>std_msgs</build_export_depend>
   <exec_depend>roscpp</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
-  <depend>livox_ros_driver2</depend>
-  <depend>pcl_ros</depend>
-  <depend>nav_msgs</depend>
-  <depend>tf2_ros</depend>
-  <depend>sensor_msgs</depend>
-  <depend>interface</depend>
-
+  <exec_depend>std_msgs</exec_depend> 
   <export>
-
   </export>
 </package>

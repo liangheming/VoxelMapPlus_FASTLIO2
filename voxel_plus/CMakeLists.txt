@@ -21,6 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   nav_msgs
   sensor_msgs
+  interface
   livox_ros_driver2
 )
 

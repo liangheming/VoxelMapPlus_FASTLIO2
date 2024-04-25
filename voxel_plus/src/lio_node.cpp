@@ -7,6 +7,7 @@
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include "interface/PointCloudWithOdom.h"
 
 struct NodeConfig
 {
@@ -100,6 +101,7 @@ public:
         body_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("body_cloud", 1000);
         world_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("world_cloud", 1000);
         voxel_map_pub = nh.advertise<visualization_msgs::MarkerArray>("voxel_map", 1000);
+        pointcloud_with_odom_pub = nh.advertise<interface::PointCloudWithOdom>("cloud_with_odom", 1000);
     }
 
     void imuCB(const sensor_msgs::Imu::ConstPtr msg)
@@ -175,6 +177,8 @@ public:
         publishCloud(body_cloud_pub, body_cloud, config.body_frame, sync_pack.cloud_end_time);
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr world_cloud = map_builder.lidarToWorld(sync_pack.cloud);
         publishCloud(world_cloud_pub, world_cloud, config.map_frame, sync_pack.cloud_end_time);
+
+        publishCloudWithOdom(body_cloud, config.map_frame, config.body_frame, sync_pack.cloud_end_time);
     }
     void voxelTimerCB(const ros::TimerEvent &event)
     {
@@ -185,11 +189,30 @@ public:
             return;
         voxel_map_pub.publish(voxel2MarkerArray(voxel_map, config.map_frame, ros::Time::now().toSec(), config.publish_voxel_num, voxel_map->voxel_size * 0.8));
     }
+    
     void publishCloud(ros::Publisher &pub, pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud, std::string &frame_id, const double &time)
     {
         if (pub.getNumSubscribers() < 1)
             return;
         pub.publish(pcl2msg(cloud, frame_id, time));
+    }
+
+    void publishCloudWithOdom(pcl::PointCloud<pcl::PointXYZINormal>::Ptr _cloud, std::string &_frame_id, std::string &_child_frame, double _timestamp)
+    {
+        interface::PointCloudWithOdom msg;
+        msg.header.stamp = ros::Time().fromSec(_timestamp);
+        msg.header.frame_id = _frame_id;
+        msg.cloud = pcl2msg(_cloud, _child_frame, _timestamp);
+        msg.pose.pose.position.x = state.pos.x();
+        msg.pose.pose.position.y = state.pos.y();
+        msg.pose.pose.position.z = state.pos.z();
+        Eigen::Quaterniond q(state.rot);
+        msg.pose.pose.orientation.w = q.w();
+        msg.pose.pose.orientation.x = q.x();
+        msg.pose.pose.orientation.y = q.y();
+        msg.pose.pose.orientation.z = q.z();
+        Eigen::Map<Eigen::Matrix<double, 6, 6, Eigen::RowMajor>>(msg.pose.covariance.data()) = map_builder.kf.P().block<6, 6>(0, 0);
+        pointcloud_with_odom_pub.publish(msg);
     }
 
 public:
@@ -211,6 +234,7 @@ public:
     ros::Publisher body_cloud_pub;
     ros::Publisher world_cloud_pub;
     ros::Publisher voxel_map_pub;
+    ros::Publisher pointcloud_with_odom_pub;
 
     lio::LIOBuilder map_builder;
 
