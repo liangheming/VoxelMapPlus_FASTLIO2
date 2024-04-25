@@ -23,6 +23,7 @@ namespace lio
         plane = std::make_shared<Plane>();
         update_enable = true;
         map = _map;
+        center = Eigen::Vector3d(position.x + 0.5, position.y + 0.5, position.z + 0.5) * map->voxel_size;
     }
 
     void VoxelGrid::addToPlane(const PointWithCov &pv)
@@ -131,7 +132,7 @@ namespace lio
         if (axis_distance < 0.0)
             plane_norm = -plane_norm;
         plane->norm = plane_norm;
-        center = plane->mean;
+        // center = plane->mean;
     }
 
     void VoxelGrid::merge()
