@@ -3,6 +3,7 @@
 #include <pcl/common/transforms.h>
 #include "std_manager/voxel_map.h"
 #include <pcl/filters/voxel_grid.h>
+#include <chrono>
 
 int main(int argc, char **argv)
 {
@@ -15,16 +16,21 @@ int main(int argc, char **argv)
     filter.setInputCloud(cloud);
     filter.filter(*cloud);
 
+    auto start = std::chrono::high_resolution_clock::now();
     stdes::VoxelMap voxel_map(1.0, 0.005, 10);
-
     voxel_map.build(cloud);
     voxel_map.mergePlanes();
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+    std::cout << "Elapsed time: " << duration << " ms" << std::endl;
 
     std::cout << "plane voxel size: " << voxel_map.plane_voxels.size() << std::endl;
     std::cout << "total voxel size: " << voxel_map.voxels.size() << std::endl;
     std::cout << "merged plane size: " << voxel_map.planes.size() << std::endl;
 
     std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> visual_clouds = voxel_map.coloredPlaneCloud();
+
     for (int i = 0; i < visual_clouds.size(); i++)
     {
         pcl::PointCloud<pcl::PointXYZRGBA>::Ptr colored_cloud = visual_clouds[i];

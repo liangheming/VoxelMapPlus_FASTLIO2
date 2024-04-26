@@ -4,7 +4,7 @@ namespace stdes
 {
     VoxelGrid::VoxelGrid(double _plane_thesh, int _min_num_thresh) : plane_thresh(_plane_thesh), min_num_thresh(_min_num_thresh)
     {
-        mean.setZero();
+        sum.setZero();
         ppt.setZero();
         clouds.clear();
         is_plane = false;
@@ -13,7 +13,7 @@ namespace stdes
     void VoxelGrid::addPoint(const pcl::PointXYZINormal &p)
     {
         Eigen::Vector3d point(p.x, p.y, p.z);
-        mean += (point - mean) / (clouds.size() + 1.0);
+        sum += point;
         ppt += point * point.transpose();
         clouds.push_back(p);
     }
@@ -25,7 +25,7 @@ namespace stdes
             is_plane = false;
             return;
         }
-
+        Eigen::Vector3d mean = sum / static_cast<double>(clouds.size());
         Eigen::Matrix3d cov = ppt / static_cast<double>(clouds.size()) - mean * mean.transpose();
         Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(cov);
         norms = es.eigenvectors();
@@ -55,7 +55,7 @@ namespace stdes
 
             pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_visual(new pcl::PointCloud<pcl::PointXYZRGBA>);
             Plane &plane_i = planes[i];
-            std::cout << "merged_plane_num: " << plane_i.num << " sur_cloud: " << plane_i.sur_cloud->size() << " cor_cloud: " << plane_i.corner_cloud->size() << std::endl;
+            // std::cout << "merged_plane_num: " << plane_i.num << " sur_cloud: " << plane_i.sur_cloud->size() << " cor_cloud: " << plane_i.corner_cloud->size() << std::endl;
             for (pcl::PointXYZINormal &point : plane_i.sur_cloud->points)
             {
                 pcl::PointXYZRGBA sp;
@@ -119,6 +119,7 @@ namespace stdes
     std::vector<VoxelKey> VoxelMap::sixNears(const VoxelKey &center)
     {
         std::vector<VoxelKey> ret;
+        ret.reserve(6);
         ret.emplace_back(center.x - 1, center.y, center.z);
         ret.emplace_back(center.x, center.y - 1, center.z);
         ret.emplace_back(center.x, center.y, center.z - 1);
@@ -166,7 +167,6 @@ namespace stdes
             p.corner_voxels.clear();
             std::queue<VoxelKey> buffer;
             buffer.push(k);
-            double min_lambda = voxels[k]->lamdas(0);
 
             while (!buffer.empty())
             {
@@ -175,16 +175,10 @@ namespace stdes
                 buffer.pop();
                 std::shared_ptr<VoxelGrid> cv = voxels[ck];
                 flags[ck] = false;
+                p.sum += cv->sum;
+                p.ppt += cv->ppt;
                 *p.sur_cloud += cv->clouds;
-                if (cv->lamdas(0) <= min_lambda)
-                {
-                    p.lamdas = cv->lamdas;
-                    p.norms = cv->norms;
-                    min_lambda = cv->lamdas[0];
-                }
-
                 p.num += 1;
-
                 for (VoxelKey &nk : sixNears(ck))
                 {
                     auto n_it = voxels.find(nk);
@@ -222,7 +216,17 @@ namespace stdes
             }
 
             if (p.num > 1 && p.corner_cloud->size() > min_num_thresh)
+            {
+                p.mean = p.sum / static_cast<double>(p.sur_cloud->size());
+                Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(p.ppt / static_cast<double>(p.sur_cloud->size()) - p.mean * p.mean.transpose());
+                p.norms = es.eigenvectors();
+                p.lamdas = es.eigenvalues();
+                if (p.lamdas(0) > plane_thresh)
+                    continue;
                 planes.push_back(p);
+            }
         }
     }
+    
 } // namespace stdes
+

@@ -43,9 +43,10 @@ namespace stdes
         void addPoint(const pcl::PointXYZINormal &p);
 
     public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         double plane_thresh;
         int min_num_thresh;
-        Eigen::Vector3d mean;
+        Eigen::Vector3d sum;
         Eigen::Matrix3d ppt;
         Eigen::Matrix3d norms;
         Eigen::Vector3d lamdas;
@@ -57,8 +58,13 @@ namespace stdes
 
     struct Plane
     {
-        Eigen::Vector3d lamdas;
-        Eigen::Matrix3d norms;
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+        Eigen::Vector3d sum = Eigen::Vector3d::Zero();
+        Eigen::Matrix3d ppt = Eigen::Matrix3d::Zero();
+        Eigen::Vector3d mean = Eigen::Vector3d::Zero();
+        Eigen::Vector3d lamdas = Eigen::Vector3d::Zero();
+        Eigen::Matrix3d norms = Eigen::Matrix3d::Zero();
+
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr sur_cloud;
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr corner_cloud;
         std::unordered_set<VoxelKey, VoxelKey::Hasher> corner_voxels;
@@ -92,7 +98,18 @@ namespace stdes
         FeatMap voxels;
         std::vector<VoxelKey> plane_voxels;
         std::vector<Plane> planes;
-
         double merge_thresh = 0.1;
+    };
+
+    class STDExtractor
+    {
+    public:
+        STDExtractor(std::shared_ptr<VoxelMap> _map);
+
+    public:
+        std::shared_ptr<VoxelMap> map;
+        double image_resolution;
+        int nms_range;
+        
     };
 } // namespace stdes
