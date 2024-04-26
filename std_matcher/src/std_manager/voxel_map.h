@@ -6,6 +6,8 @@
 #include <Eigen/Eigen>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include <pcl/common/transforms.h>
+#include <pcl/kdtree/kdtree_flann.h>
 #include <queue>
 #include <unordered_set>
 
@@ -88,12 +90,13 @@ namespace stdes
 
         void updateMergeThresh(double _merge_thresh) { merge_thresh = _merge_thresh; }
 
+        void reset();
+
         std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> coloredPlaneCloud(bool with_corner = false);
 
     public:
         double plane_thresh;
         double voxel_size;
-
         int min_num_thresh;
         FeatMap voxels;
         std::vector<VoxelKey> plane_voxels;
@@ -104,12 +107,20 @@ namespace stdes
     class STDExtractor
     {
     public:
-        STDExtractor(std::shared_ptr<VoxelMap> _map);
+        STDExtractor(std::shared_ptr<VoxelMap> _voxel_map);
+
+        void extract(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud);
+
+        pcl::PointCloud<pcl::PointXYZINormal>::Ptr projectCornerNMS(const Plane &plane);
+
+        static std::vector<VoxelKey> nears2d(const VoxelKey &center, int range);
+        
+        pcl::PointCloud<pcl::PointXYZINormal>::Ptr nms3D(pcl::PointCloud<pcl::PointXYZINormal>::Ptr prepare_key_cloud);
 
     public:
-        std::shared_ptr<VoxelMap> map;
-        double image_resolution;
-        int nms_range;
-        
+        std::shared_ptr<VoxelMap> voxel_map;
+        double image_resolution = 0.25;
+        int nms_range = 5;
+        double nms_3d_range = 1.0;
     };
 } // namespace stdes
