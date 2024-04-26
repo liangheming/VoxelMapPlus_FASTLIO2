@@ -2,7 +2,6 @@
 
 namespace stdes
 {
-
     VoxelGrid::VoxelGrid(double _plane_thesh, int _min_num_thresh) : plane_thresh(_plane_thesh), min_num_thresh(_min_num_thresh)
     {
         sum.setZero();
