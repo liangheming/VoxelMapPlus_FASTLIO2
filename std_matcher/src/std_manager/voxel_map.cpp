@@ -35,6 +35,7 @@ namespace stdes
         else
             is_plane = false;
     }
+
     VoxelMap::VoxelMap(double _voxel_size, double _plane_thesh, int _min_num_thresh) : voxel_size(_voxel_size), plane_thresh(_plane_thesh), min_num_thresh(_min_num_thresh)
     {
         voxels.clear();
@@ -42,13 +43,19 @@ namespace stdes
         planes.clear();
     }
 
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr VoxelMap::coloredPlaneCloud()
+    std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> VoxelMap::coloredPlaneCloud(bool with_corner)
     {
         int size = planes.size();
-        pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_visual(new pcl::PointCloud<pcl::PointXYZRGBA>);
+        std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> ret;
+        if (size > 0)
+            ret.reserve(size);
+
         for (int i = 0; i < size; i++)
         {
+
+            pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_visual(new pcl::PointCloud<pcl::PointXYZRGBA>);
             Plane &plane_i = planes[i];
+            std::cout << "merged_plane_num: " << plane_i.num << " sur_cloud: " << plane_i.sur_cloud->size() << " cor_cloud: " << plane_i.corner_cloud->size() << std::endl;
             for (pcl::PointXYZINormal &point : plane_i.sur_cloud->points)
             {
                 pcl::PointXYZRGBA sp;
@@ -61,20 +68,25 @@ namespace stdes
                 sp.z = point.z;
                 cloud_visual->push_back(sp);
             }
-
-            for (pcl::PointXYZINormal &point : plane_i.corner_cloud->points)
+            if (with_corner)
             {
-                pcl::PointXYZRGBA sp;
-                sp.r = 255;
-                sp.b = 255;
-                sp.g = 255;
-                sp.x = point.x;
-                sp.y = point.y;
-                sp.z = point.z;
-                cloud_visual->push_back(sp);
+                for (pcl::PointXYZINormal &point : plane_i.corner_cloud->points)
+                {
+                    pcl::PointXYZRGBA sp;
+                    sp.r = 255;
+                    sp.b = 255;
+                    sp.g = 255;
+                    sp.x = point.x;
+                    sp.y = point.y;
+                    sp.z = point.z;
+                    cloud_visual->push_back(sp);
+                }
             }
+
+            ret.push_back(cloud_visual);
         }
-        return cloud_visual;
+
+        return ret;
     }
 
     VoxelKey VoxelMap::index(const pcl::PointXYZINormal &p)
@@ -136,8 +148,6 @@ namespace stdes
                 plane_voxels.push_back(it->first);
             }
         }
-
-        // std::cout << "plane voxel size: " << plane_voxels.size() << " total voxel size: " << voxels.size() << std::endl;
     }
 
     void VoxelMap::mergePlanes()
@@ -153,6 +163,7 @@ namespace stdes
             Plane p;
             p.sur_cloud.reset(new pcl::PointCloud<pcl::PointXYZINormal>);
             p.corner_cloud.reset(new pcl::PointCloud<pcl::PointXYZINormal>);
+            p.corner_voxels.clear();
             std::queue<VoxelKey> buffer;
             buffer.push(k);
             double min_lambda = voxels[k]->lamdas(0);
@@ -171,6 +182,7 @@ namespace stdes
                     p.norms = cv->norms;
                     min_lambda = cv->lamdas[0];
                 }
+
                 p.num += 1;
 
                 for (VoxelKey &nk : sixNears(ck))
@@ -180,18 +192,31 @@ namespace stdes
                         continue;
                     if (n_it->second->is_plane)
                     {
-
-                        // 如果是平面，且可以合并
-                        if (flags[n_it->first] && ((cv->norms.col(0) - n_it->second->norms.col(0)).norm() < merge_thresh || (cv->norms.col(0) + n_it->second->norms.col(0)).norm() < merge_thresh))
+                        if (((cv->norms.col(0) - n_it->second->norms.col(0)).norm() < merge_thresh || (cv->norms.col(0) + n_it->second->norms.col(0)).norm() < merge_thresh))
                         {
-                            buffer.push(n_it->first);
+                            if (flags[n_it->first])
+                                buffer.push(n_it->first);
+                        }
+                        else
+                        {
+                            if (p.corner_voxels.find(n_it->first) == p.corner_voxels.end())
+                            {
+                                *p.corner_cloud += n_it->second->clouds;
+                                p.corner_voxels.insert(n_it->first);
+                            }
                         }
                     }
                     else
                     {
                         // 如果不是平面则添加到cornner里面
                         if (n_it->second->clouds.size() > min_num_thresh)
-                            *p.corner_cloud += n_it->second->clouds;
+                        {
+                            if (p.corner_voxels.find(n_it->first) == p.corner_voxels.end())
+                            {
+                                *p.corner_cloud += n_it->second->clouds;
+                                p.corner_voxels.insert(n_it->first);
+                            }
+                        }
                     }
                 }
             }

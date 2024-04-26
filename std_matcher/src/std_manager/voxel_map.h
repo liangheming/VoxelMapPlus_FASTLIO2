@@ -7,6 +7,7 @@
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <queue>
+#include <unordered_set>
 
 #define HASH_P 116101
 #define MAX_N 10000000000
@@ -60,6 +61,7 @@ namespace stdes
         Eigen::Matrix3d norms;
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr sur_cloud;
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr corner_cloud;
+        std::unordered_set<VoxelKey, VoxelKey::Hasher> corner_voxels;
         int num = 0;
     };
 
@@ -80,7 +82,7 @@ namespace stdes
 
         void updateMergeThresh(double _merge_thresh) { merge_thresh = _merge_thresh; }
 
-        pcl::PointCloud<pcl::PointXYZRGBA>::Ptr coloredPlaneCloud();
+        std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> coloredPlaneCloud(bool with_corner = false);
 
     public:
         double plane_thresh;
@@ -90,6 +92,7 @@ namespace stdes
         FeatMap voxels;
         std::vector<VoxelKey> plane_voxels;
         std::vector<Plane> planes;
+
         double merge_thresh = 0.1;
     };
 } // namespace stdes

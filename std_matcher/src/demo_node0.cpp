@@ -15,7 +15,7 @@ int main(int argc, char **argv)
     filter.setInputCloud(cloud);
     filter.filter(*cloud);
 
-    stdes::VoxelMap voxel_map(1.0, 0.01, 10);
+    stdes::VoxelMap voxel_map(1.0, 0.005, 10);
 
     voxel_map.build(cloud);
     voxel_map.mergePlanes();
@@ -24,7 +24,13 @@ int main(int argc, char **argv)
     std::cout << "total voxel size: " << voxel_map.voxels.size() << std::endl;
     std::cout << "merged plane size: " << voxel_map.planes.size() << std::endl;
 
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr visual_cloud = voxel_map.coloredPlaneCloud();
-    writer.write("/home/zhouzhou/temp/single_pcd/color.pcd", *visual_cloud);
+    std::vector<pcl::PointCloud<pcl::PointXYZRGBA>::Ptr> visual_clouds = voxel_map.coloredPlaneCloud();
+    for (int i = 0; i < visual_clouds.size(); i++)
+    {
+        pcl::PointCloud<pcl::PointXYZRGBA>::Ptr colored_cloud = visual_clouds[i];
+        if (colored_cloud->size() > 0)
+            writer.write("/home/zhouzhou/temp/single_pcd/" + std::to_string(i) + ".pcd", *colored_cloud);
+    }
+
     return 0;
 }
