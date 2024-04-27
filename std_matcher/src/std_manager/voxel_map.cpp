@@ -96,6 +96,13 @@ namespace stdes
         return VoxelKey(static_cast<int64_t>(idx(0)), static_cast<int64_t>(idx(1)), static_cast<int64_t>(idx(2)));
     }
 
+    VoxelKey VoxelMap::index(double x, double y, double z, double resolution)
+    {
+        Eigen::Vector3d point(x, y, z);
+        Eigen::Vector3d idx = (point / resolution).array().floor();
+        return VoxelKey(static_cast<int64_t>(idx(0)), static_cast<int64_t>(idx(1)), static_cast<int64_t>(idx(2)));
+    }
+
     std::vector<VoxelKey> VoxelMap::nears(const VoxelKey &center, int range)
     {
         std::vector<VoxelKey> ret;
@@ -242,19 +249,33 @@ namespace stdes
     {
     }
 
-    void STDExtractor::extract(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud)
+    void STDExtractor::extract(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud, uint64_t frame_id, std::vector<STDDescriptor> &descs)
     {
         voxel_map->reset();
         voxel_map->build(cloud);
         voxel_map->mergePlanes();
+        descs.clear();
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr prepare_key_cloud(new pcl::PointCloud<pcl::PointXYZINormal>);
         for (const Plane &plane : voxel_map->planes)
         {
             *prepare_key_cloud += *projectCornerNMS(plane);
         }
-        
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr candidates = nms3D(prepare_key_cloud);
-
+        if (candidates->points.size() > max_corner_num)
+        {
+            std::sort(candidates->points.begin(), candidates->points.end(), [](pcl::PointXYZINormal &p1, pcl::PointXYZINormal &p2) -> bool
+                      { return p1.intensity > p2.intensity; });
+            prepare_key_cloud->clear();
+            prepare_key_cloud->points.assign(candidates->points.begin(), candidates->points.begin() + max_corner_num);
+            candidates = prepare_key_cloud;
+        }
+        buildDescriptor(candidates, descs);
+        std::cout << candidates->size() << std::endl;
+        std::cout << descs.size() << std::endl;
+        for (int i = 0; i < 50; i++)
+        {
+            std::cout << descs[i].side_length.transpose() << std::endl;
+        }
     }
 
     std::vector<VoxelKey> STDExtractor::nears2d(const VoxelKey &center, int range)
@@ -277,46 +298,36 @@ namespace stdes
     pcl::PointCloud<pcl::PointXYZINormal>::Ptr STDExtractor::projectCornerNMS(const Plane &plane)
     {
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr filtered_point(new pcl::PointCloud<pcl::PointXYZINormal>);
-        Eigen::Matrix3f rot;
-        Eigen::Vector3f trans;
-        rot.row(0) = plane.norms.col(2).cast<float>();
-        rot.row(1) = plane.norms.col(1).cast<float>();
-        rot.row(2) = plane.norms.col(0).cast<float>();
-        trans = -rot * plane.mean.cast<float>();
-        pcl::transformPointCloud(*plane.corner_cloud, *filtered_point, trans, Eigen::Quaternionf(rot));
-
         std::unordered_map<VoxelKey, pcl::PointXYZINormal, VoxelKey::Hasher> image_grids;
-        // 投影到平面
-        for (int i = 0; i < filtered_point->size(); i++)
+        for (int i = 0; i < plane.corner_cloud->points.size(); i++)
         {
-            pcl::PointXYZINormal &p = filtered_point->points[i];
-
-            Eigen::Vector3d point_vec(p.x, p.y, p.z);
-
-            point_vec = (point_vec / image_resolution).array().floor();
-
-            VoxelKey k(static_cast<int64_t>(point_vec(0)), static_cast<int64_t>(point_vec(1)), 0);
+            pcl::PointXYZINormal p = plane.corner_cloud->points[i];
+            Eigen::Vector3d dis_vec = Eigen::Vector3d(p.x, p.y, p.z) - plane.mean;
+            Eigen::Vector3d plane_p_vec(dis_vec.dot(plane.norms.col(2)), dis_vec.dot(plane.norms.col(1)), dis_vec.dot(plane.norms.col(0)));
+            Eigen::Vector3d idx = (plane_p_vec / image_resolution).array().floor();
+            VoxelKey k(static_cast<int64_t>(idx(0)), static_cast<int64_t>(idx(1)), 0);
 
             if (image_grids.find(k) == image_grids.end())
             {
-                image_grids[k] = plane.corner_cloud->points[i];
+                image_grids[k] = p;
                 image_grids[k].curvature = 1.0;
-                image_grids[k].normal_x = p.x;
-                image_grids[k].normal_y = p.y;
-                image_grids[k].normal_z = p.z;
+                image_grids[k].normal_x = plane_p_vec.x();
+                image_grids[k].normal_y = plane_p_vec.y();
+                image_grids[k].normal_z = plane_p_vec.z();
             }
             else
             {
-                if (std::abs(p.z) > std::abs(image_grids[k].normal_z))
+                if (std::abs(plane_p_vec.z()) > std::abs(image_grids[k].normal_z))
                 {
-                    image_grids[k] = plane.corner_cloud->points[i];
+                    image_grids[k] = p;
                     image_grids[k].curvature = 1.0;
-                    image_grids[k].normal_x = p.x;
-                    image_grids[k].normal_y = p.y;
-                    image_grids[k].normal_z = p.z;
+                    image_grids[k].normal_x = plane_p_vec.x();
+                    image_grids[k].normal_y = plane_p_vec.y();
+                    image_grids[k].normal_z = plane_p_vec.z();
                 }
             }
         }
+
         // 在一定范围内进行非极大值抑制
         for (auto it = image_grids.begin(); it != image_grids.end(); it++)
         {
@@ -339,12 +350,9 @@ namespace stdes
             }
         }
 
-        filtered_point->clear();
-
-        // 修正剩余点的法向量
         for (auto it = image_grids.begin(); it != image_grids.end(); it++)
         {
-            if (it->second.curvature == 1.0)
+            if (it->second.curvature == 1.0 && std::abs(it->second.normal_z) > 0)
             {
                 it->second.intensity = std::abs(it->second.normal_z);
                 it->second.normal_x = plane.norms.col(0).x();
@@ -353,6 +361,7 @@ namespace stdes
                 filtered_point->push_back(it->second);
             }
         }
+
         return filtered_point;
     }
 
@@ -387,11 +396,81 @@ namespace stdes
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr candidates(new pcl::PointCloud<pcl::PointXYZINormal>);
         for (pcl::PointXYZINormal &p : prepare_key_cloud->points)
         {
-            if (p.curvature == 1.0)
+            if (p.curvature == 1.0 && p.intensity > 0)
                 candidates->push_back(p);
         }
 
         return candidates;
+    }
+
+    void STDExtractor::buildDescriptor(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud, std::vector<STDDescriptor> &desc)
+    {
+        std::unordered_set<VoxelKey, VoxelKey::Hasher> flag;
+        pcl::KdTreeFLANN<pcl::PointXYZINormal>::Ptr kd_tree(
+            new pcl::KdTreeFLANN<pcl::PointXYZINormal>);
+        kd_tree->setInputCloud(cloud);
+        std::cout << cloud->size() << std::endl;
+        std::vector<int> pointIdxNKNSearch(descriptor_near_num);
+        std::vector<float> pointNKNSquaredDistance(descriptor_near_num);
+        for (size_t i = 0; i < cloud->size(); i++)
+        {
+            pcl::PointXYZINormal searchPoint = cloud->points[i];
+            if (kd_tree->nearestKSearch(searchPoint, descriptor_near_num, pointIdxNKNSearch, pointNKNSquaredDistance) > 0)
+            {
+                for (int m = 1; m < descriptor_near_num - 1; m++)
+                {
+                    for (int n = m + 1; n < descriptor_near_num; n++)
+                    {
+                        pcl::PointXYZINormal p1 = searchPoint;
+                        pcl::PointXYZINormal p2 = cloud->points[pointIdxNKNSearch[m]];
+                        pcl::PointXYZINormal p3 = cloud->points[pointIdxNKNSearch[n]];
+
+                        double s1 = sqrt(pow(p1.x - p2.x, 2) + pow(p1.y - p2.y, 2) + pow(p1.z - p2.z, 2));
+                        double s2 = sqrt(pow(p2.x - p3.x, 2) + pow(p2.y - p3.y, 2) + pow(p2.z - p3.z, 2));
+                        double s3 = sqrt(pow(p3.x - p1.x, 2) + pow(p3.y - p1.y, 2) + pow(p3.z - p1.z, 2));
+
+                        if (s1 < min_dis_threshold || s1 > max_dis_threshold ||
+                            s2 < min_dis_threshold || s2 > max_dis_threshold ||
+                            s3 < min_dis_threshold || s3 > max_dis_threshold)
+                        {
+                            continue;
+                        }
+                        std::vector<std::pair<double, int>> arr_pair{{s1, 0}, {s2, 1}, {s3, 2}};
+                        std::sort(arr_pair.begin(), arr_pair.end(), [](std::pair<double, int> &i1, std::pair<double, int> &i2)
+                                  { return i1.first < i2.first; });
+                        std::vector<std::pair<double, pcl::PointXYZINormal>> temp_ps{{s1, p1}, {s2, p2}, {s3, p3}};
+                        p1 = temp_ps[arr_pair[0].second].second;
+                        p2 = temp_ps[arr_pair[1].second].second;
+                        p3 = temp_ps[arr_pair[2].second].second;
+
+                        s1 = temp_ps[arr_pair[0].second].first;
+                        s2 = temp_ps[arr_pair[1].second].first;
+                        s3 = temp_ps[arr_pair[2].second].first;
+                        VoxelKey k = VoxelMap::index(s1, s2, s3, 0.001);
+                        if (flag.find(k) != flag.end())
+                        {
+                            continue;
+                        }
+                        flag.insert(k);
+                        STDDescriptor one_des;
+                        one_des.center = Eigen::Vector3d(p1.x + p2.x + p3.x, p1.y + p2.y + p3.y, p1.z + p2.z + p3.z) / 3.0;
+                        one_des.vertex_a = Eigen::Vector3d(p1.x, p1.y, p1.z);
+                        one_des.vertex_b = Eigen::Vector3d(p2.x, p2.y, p2.z);
+                        one_des.vertex_c = Eigen::Vector3d(p3.x, p3.y, p3.z);
+                        one_des.attached = Eigen::Vector3d(p1.intensity, p2.intensity, p3.intensity);
+                        one_des.side_length = Eigen::Vector3d(s1, s2, s3);
+                        one_des.norms.col(0) = Eigen::Vector3d(p1.normal_x, p1.normal_y, p1.normal_z);
+                        one_des.norms.col(1) = Eigen::Vector3d(p2.normal_x, p2.normal_y, p2.normal_z);
+                        one_des.norms.col(2) = Eigen::Vector3d(p3.normal_x, p3.normal_y, p3.normal_z);
+                        one_des.angle = Eigen::Vector3d(
+                            std::abs(one_des.norms.col(0).dot(one_des.norms.col(1))),
+                            std::abs(one_des.norms.col(1).dot(one_des.norms.col(2))),
+                            std::abs(one_des.norms.col(2).dot(one_des.norms.col(0))));
+                        desc.push_back(one_des);
+                    }
+                }
+            }
+        }
     }
 
 } // namespace stdes

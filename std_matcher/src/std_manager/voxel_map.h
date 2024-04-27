@@ -79,6 +79,8 @@ namespace stdes
         VoxelMap(double _voxel_size, double _plane_thesh, int _min_num_thresh);
 
         VoxelKey index(const pcl::PointXYZINormal &p);
+        
+        static VoxelKey index(double x, double y, double z, double resolution);
 
         static std::vector<VoxelKey> nears(const VoxelKey &center, int range);
 
@@ -104,23 +106,44 @@ namespace stdes
         double merge_thresh = 0.1;
     };
 
+    struct STDDescriptor
+    {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+        uint64_t frame_id;
+        Eigen::Vector3d side_length;
+        Eigen::Vector3d angle;
+        Eigen::Vector3d center;
+        Eigen::Vector3d vertex_a;
+        Eigen::Vector3d vertex_b;
+        Eigen::Vector3d vertex_c;
+        Eigen::Vector3d attached;
+        Eigen::Matrix3d norms;
+    };
+
     class STDExtractor
     {
     public:
         STDExtractor(std::shared_ptr<VoxelMap> _voxel_map);
 
-        void extract(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud);
+        void extract(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud, uint64_t frame_id,std::vector<STDDescriptor>& descs);
 
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr projectCornerNMS(const Plane &plane);
 
         static std::vector<VoxelKey> nears2d(const VoxelKey &center, int range);
-        
+
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr nms3D(pcl::PointCloud<pcl::PointXYZINormal>::Ptr prepare_key_cloud);
+
+        void buildDescriptor(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud, std::vector<STDDescriptor> &desc);
 
     public:
         std::shared_ptr<VoxelMap> voxel_map;
         double image_resolution = 0.25;
         int nms_range = 5;
         double nms_3d_range = 1.0;
+        int max_corner_num = 100;
+        int descriptor_near_num = 15;
+        double std_side_resolution = 0.2;
+        double min_dis_threshold = 1.0;
+        double max_dis_threshold = 30.0;
     };
 } // namespace stdes
