@@ -19,8 +19,11 @@ int main(int argc, char **argv)
     auto start = std::chrono::high_resolution_clock::now();
     std::shared_ptr<stdes::VoxelMap> voxel_map = std::make_shared<stdes::VoxelMap>(1.0, 0.005, 10);
     stdes::STDExtractor extractor(voxel_map);
+    extractor.nms_3d_range = 2.0;
+    extractor.min_dis_threshold = 2.0;
     std::vector<stdes::STDDescriptor> descs;
     extractor.extract(cloud, 1, descs);
+    
     std::cout << descs.size() << std::endl;
 
     auto end = std::chrono::high_resolution_clock::now();

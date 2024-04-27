@@ -270,12 +270,6 @@ namespace stdes
             candidates = prepare_key_cloud;
         }
         buildDescriptor(candidates, descs);
-        std::cout << candidates->size() << std::endl;
-        std::cout << descs.size() << std::endl;
-        for (int i = 0; i < 50; i++)
-        {
-            std::cout << descs[i].side_length.transpose() << std::endl;
-        }
     }
 
     std::vector<VoxelKey> STDExtractor::nears2d(const VoxelKey &center, int range)
