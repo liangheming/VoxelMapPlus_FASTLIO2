@@ -55,7 +55,6 @@ namespace stdes
 
             pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_visual(new pcl::PointCloud<pcl::PointXYZRGBA>);
             Plane &plane_i = planes[i];
-            // std::cout << "merged_plane_num: " << plane_i.num << " sur_cloud: " << plane_i.sur_cloud->size() << " cor_cloud: " << plane_i.corner_cloud->size() << std::endl;
             for (pcl::PointXYZINormal &point : plane_i.sur_cloud->points)
             {
                 pcl::PointXYZRGBA sp;
@@ -198,14 +197,14 @@ namespace stdes
                             if (flags[n_it->first])
                                 buffer.push(n_it->first);
                         }
-                        else
-                        {
-                            if (p.corner_voxels.find(n_it->first) == p.corner_voxels.end())
-                            {
-                                *p.corner_cloud += n_it->second->clouds;
-                                p.corner_voxels.insert(n_it->first);
-                            }
-                        }
+                        // else
+                        // {
+                        //     if (p.corner_voxels.find(n_it->first) == p.corner_voxels.end())
+                        //     {
+                        //         *p.corner_cloud += n_it->second->clouds;
+                        //         p.corner_voxels.insert(n_it->first);
+                        //     }
+                        // }
                     }
                     else
                     {
@@ -403,7 +402,7 @@ namespace stdes
         pcl::KdTreeFLANN<pcl::PointXYZINormal>::Ptr kd_tree(
             new pcl::KdTreeFLANN<pcl::PointXYZINormal>);
         kd_tree->setInputCloud(cloud);
-        std::cout << cloud->size() << std::endl;
+        // std::cout << cloud->size() << std::endl;
         std::vector<int> pointIdxNKNSearch(descriptor_near_num);
         std::vector<float> pointNKNSquaredDistance(descriptor_near_num);
         for (size_t i = 0; i < cloud->size(); i++)

@@ -53,4 +53,12 @@ add_executable(demo_node0 src/demo_node0.cpp  ${SRC_LIST} ${STD_SRC_LIST})
 
 target_link_libraries(demo_node0
   ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
 )
+
+add_executable(stdesc_extractor src/stdesc_extractor.cpp  ${SRC_LIST} ${STD_SRC_LIST})
+
+target_link_libraries(stdesc_extractor
+  ${catkin_LIBRARIES}
+)
+
