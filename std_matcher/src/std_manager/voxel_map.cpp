@@ -163,6 +163,7 @@ namespace stdes
         for (VoxelKey &k : plane_voxels)
             flags[k] = true;
 
+        // 这里进行平面的合并，同时记录corner voxels;
         for (VoxelKey &k : plane_voxels)
         {
             if (!flags[k])
@@ -197,14 +198,6 @@ namespace stdes
                             if (flags[n_it->first])
                                 buffer.push(n_it->first);
                         }
-                        // else
-                        // {
-                        //     if (p.corner_voxels.find(n_it->first) == p.corner_voxels.end())
-                        //     {
-                        //         *p.corner_cloud += n_it->second->clouds;
-                        //         p.corner_voxels.insert(n_it->first);
-                        //     }
-                        // }
                     }
                     else
                     {
@@ -221,16 +214,32 @@ namespace stdes
                 }
             }
 
-            if (p.num > 1 && p.corner_cloud->size() > min_num_thresh)
+            if (p.num <= 1)
+                continue;
+            std::unordered_set<VoxelKey, VoxelKey::Hasher> copy_corner_voxels(p.corner_voxels.begin(), p.corner_voxels.end());
+            for (auto corner_keyset = copy_corner_voxels.begin(); corner_keyset != copy_corner_voxels.end(); corner_keyset++)
             {
-                p.mean = p.sum / static_cast<double>(p.sur_cloud->size());
-                Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(p.ppt / static_cast<double>(p.sur_cloud->size()) - p.mean * p.mean.transpose());
-                p.norms = es.eigenvectors();
-                p.lamdas = es.eigenvalues();
-                if (p.lamdas(0) > plane_thresh)
-                    continue;
-                planes.push_back(p);
+                std::vector<VoxelKey> near_corner_ks = VoxelMap::nears(*corner_keyset, 1);
+                for (VoxelKey &near_corner_k : near_corner_ks)
+                {
+                    auto near_corner_k_in_global_voxel = voxels.find(near_corner_k);
+                    if (near_corner_k_in_global_voxel == voxels.end() || p.corner_voxels.find(near_corner_k) != p.corner_voxels.end() || near_corner_k_in_global_voxel->second->is_plane)
+                        continue;
+                    *p.corner_cloud += near_corner_k_in_global_voxel->second->clouds;
+                    p.corner_voxels.insert(near_corner_k);
+                }
             }
+
+            if (p.corner_cloud->size() <= min_num_thresh)
+                continue;
+
+            p.mean = p.sum / static_cast<double>(p.sur_cloud->size());
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(p.ppt / static_cast<double>(p.sur_cloud->size()) - p.mean * p.mean.transpose());
+            p.norms = es.eigenvectors();
+            p.lamdas = es.eigenvalues();
+            if (p.lamdas(0) > plane_thresh)
+                continue;
+            planes.push_back(p);
         }
     }
 
@@ -255,11 +264,17 @@ namespace stdes
         voxel_map->mergePlanes();
         descs.clear();
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr prepare_key_cloud(new pcl::PointCloud<pcl::PointXYZINormal>);
+
         for (const Plane &plane : voxel_map->planes)
         {
             *prepare_key_cloud += *projectCornerNMS(plane);
         }
+
+        std::cout << "before 3d nms: " << prepare_key_cloud->size() << std::endl;
+
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr candidates = nms3D(prepare_key_cloud);
+        std::cout << "after 3d nms: " << candidates->size() << std::endl;
+
         if (candidates->points.size() > max_corner_num)
         {
             std::sort(candidates->points.begin(), candidates->points.end(), [](pcl::PointXYZINormal &p1, pcl::PointXYZINormal &p2) -> bool
@@ -291,7 +306,7 @@ namespace stdes
     pcl::PointCloud<pcl::PointXYZINormal>::Ptr STDExtractor::projectCornerNMS(const Plane &plane)
     {
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr filtered_point(new pcl::PointCloud<pcl::PointXYZINormal>);
-        std::unordered_map<VoxelKey, pcl::PointXYZINormal, VoxelKey::Hasher> image_grids;
+        std::unordered_map<VoxelKey, Grid2d, VoxelKey::Hasher> image_grids;
         for (int i = 0; i < plane.corner_cloud->points.size(); i++)
         {
             pcl::PointXYZINormal p = plane.corner_cloud->points[i];
@@ -299,25 +314,21 @@ namespace stdes
             Eigen::Vector3d plane_p_vec(dis_vec.dot(plane.norms.col(2)), dis_vec.dot(plane.norms.col(1)), dis_vec.dot(plane.norms.col(0)));
             Eigen::Vector3d idx = (plane_p_vec / image_resolution).array().floor();
             VoxelKey k(static_cast<int64_t>(idx(0)), static_cast<int64_t>(idx(1)), 0);
+            if (plane_p_vec.z() <= project_min_dis || plane_p_vec.z() >= project_max_dis)
+                continue;
 
             if (image_grids.find(k) == image_grids.end())
             {
-                image_grids[k] = p;
-                image_grids[k].curvature = 1.0;
-                image_grids[k].normal_x = plane_p_vec.x();
-                image_grids[k].normal_y = plane_p_vec.y();
-                image_grids[k].normal_z = plane_p_vec.z();
+                image_grids[k].mean = plane.mean;
+                image_grids[k].norms = plane.norms;
+                image_grids[k].xy = Eigen::Vector2d(plane_p_vec.x(), plane_p_vec.y());
+                image_grids[k].num = 1;
+                image_grids[k].flag = true;
             }
             else
             {
-                if (std::abs(plane_p_vec.z()) > std::abs(image_grids[k].normal_z))
-                {
-                    image_grids[k] = p;
-                    image_grids[k].curvature = 1.0;
-                    image_grids[k].normal_x = plane_p_vec.x();
-                    image_grids[k].normal_y = plane_p_vec.y();
-                    image_grids[k].normal_z = plane_p_vec.z();
-                }
+                image_grids[k].xy += Eigen::Vector2d(plane_p_vec.x(), plane_p_vec.y());
+                image_grids[k].num += 1;
             }
         }
 
@@ -325,34 +336,36 @@ namespace stdes
         for (auto it = image_grids.begin(); it != image_grids.end(); it++)
         {
             VoxelKey ck = it->first;
-            pcl::PointXYZINormal &p = it->second;
-            if (p.curvature == 0.0)
+            Grid2d &g2d = it->second;
+            if (!g2d.flag)
                 continue;
             for (VoxelKey &nk : nears2d(ck, nms_range))
             {
                 if (image_grids.find(nk) == image_grids.end())
                     continue;
-                if (std::abs(p.normal_z) > std::abs(image_grids[nk].normal_z))
-                {
-                    image_grids[nk].curvature == 0.0;
-                }
-                else if (std::abs(image_grids[nk].normal_z) > std::abs(p.normal_z))
-                {
-                    p.curvature = 0.0;
-                }
+                if (g2d.num > image_grids[nk].num)
+                    image_grids[nk].flag = false;
+                else if (image_grids[nk].num > g2d.num)
+                    g2d.flag = false;
             }
         }
 
         for (auto it = image_grids.begin(); it != image_grids.end(); it++)
         {
-            if (it->second.curvature == 1.0 && std::abs(it->second.normal_z) > 0)
-            {
-                it->second.intensity = std::abs(it->second.normal_z);
-                it->second.normal_x = plane.norms.col(0).x();
-                it->second.normal_y = plane.norms.col(0).y();
-                it->second.normal_z = plane.norms.col(0).z();
-                filtered_point->push_back(it->second);
-            }
+            if (!it->second.flag)
+                continue;
+            pcl::PointXYZINormal p;
+            p.intensity = static_cast<float>(it->second.num);
+            Eigen::Vector2d mean_xy = it->second.xy / static_cast<double>(it->second.num);
+            Eigen::Vector3d corner_point_in_plane = mean_xy.x() * it->second.norms.col(2) + mean_xy.y() * it->second.norms.col(1) + it->second.mean;
+            p.x = corner_point_in_plane.x();
+            p.y = corner_point_in_plane.y();
+            p.z = corner_point_in_plane.z();
+            p.curvature = 1.0;
+            p.normal_x = plane.norms.col(0).x();
+            p.normal_y = plane.norms.col(0).y();
+            p.normal_z = plane.norms.col(0).z();
+            filtered_point->push_back(p);
         }
 
         return filtered_point;
@@ -389,7 +402,7 @@ namespace stdes
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr candidates(new pcl::PointCloud<pcl::PointXYZINormal>);
         for (pcl::PointXYZINormal &p : prepare_key_cloud->points)
         {
-            if (p.curvature == 1.0 && p.intensity > 0)
+            if (p.curvature == 1.0)
                 candidates->push_back(p);
         }
 

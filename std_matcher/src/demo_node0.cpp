@@ -20,8 +20,7 @@ int main(int argc, char **argv)
     auto start = std::chrono::high_resolution_clock::now();
     std::shared_ptr<stdes::VoxelMap> voxel_map = std::make_shared<stdes::VoxelMap>(1.0, 0.01, 10);
     stdes::STDExtractor extractor(voxel_map);
-    extractor.nms_3d_range = 2.0;
-    extractor.min_dis_threshold = 2.0;
+    extractor.nms_3d_range = 1.5;
     extractor.descriptor_near_num = 15;
     std::vector<stdes::STDDescriptor> descs;
     extractor.extract(cloud, 1, descs);
@@ -31,7 +30,7 @@ int main(int argc, char **argv)
     std::cout << "Elapsed time: " << duration << " ms" << std::endl;
 
     pcl::PointCloud<pcl::PointXYZRGBA>::Ptr visualize_cloud(new pcl::PointCloud<pcl::PointXYZRGBA>);
-    for (pcl::PointCloud<pcl::PointXYZRGBA>::Ptr &p : extractor.voxel_map->coloredPlaneCloud(false))
+    for (pcl::PointCloud<pcl::PointXYZRGBA>::Ptr &p : extractor.voxel_map->coloredPlaneCloud(true))
     {
         *visualize_cloud += *p;
     }

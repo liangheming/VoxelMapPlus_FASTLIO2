@@ -79,7 +79,7 @@ namespace stdes
         VoxelMap(double _voxel_size, double _plane_thesh, int _min_num_thresh);
 
         VoxelKey index(const pcl::PointXYZINormal &p);
-        
+
         static VoxelKey index(double x, double y, double z, double resolution);
 
         static std::vector<VoxelKey> nears(const VoxelKey &center, int range);
@@ -120,12 +120,22 @@ namespace stdes
         Eigen::Matrix3d norms;
     };
 
+    struct Grid2d
+    {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+        Eigen::Vector2d xy = Eigen::Vector2d::Zero();
+        Eigen::Vector3d mean = Eigen::Vector3d::Zero();
+        Eigen::Matrix3d norms = Eigen::Matrix3d::Zero();
+        int num = 0;
+        bool flag = true;
+    };
+    
     class STDExtractor
     {
     public:
         STDExtractor(std::shared_ptr<VoxelMap> _voxel_map);
 
-        void extract(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud, uint64_t frame_id,std::vector<STDDescriptor>& descs);
+        void extract(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud, uint64_t frame_id, std::vector<STDDescriptor> &descs);
 
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr projectCornerNMS(const Plane &plane);
 
@@ -145,5 +155,7 @@ namespace stdes
         double std_side_resolution = 0.2;
         double min_dis_threshold = 1.0;
         double max_dis_threshold = 30.0;
+        double project_min_dis = 0.0;
+        double project_max_dis = 5.0;
     };
 } // namespace stdes
