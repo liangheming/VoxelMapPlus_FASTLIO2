@@ -20,7 +20,7 @@ namespace stdes
 
     void VoxelGrid::buildPlane()
     {
-        if (clouds.size() < min_num_thresh)
+        if (clouds.size() <= min_num_thresh)
         {
             is_plane = false;
             return;
@@ -270,10 +270,9 @@ namespace stdes
             *prepare_key_cloud += *projectCornerNMS(plane);
         }
 
-        std::cout << "before 3d nms: " << prepare_key_cloud->size() << std::endl;
-
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr candidates = nms3D(prepare_key_cloud);
-        std::cout << "after 3d nms: " << candidates->size() << std::endl;
+
+        std::cout << "corner size: " << candidates->size() << std::endl;
 
         if (candidates->points.size() > max_corner_num)
         {
@@ -356,6 +355,8 @@ namespace stdes
                 continue;
             pcl::PointXYZINormal p;
             p.intensity = static_cast<float>(it->second.num);
+            if (p.intensity < 10)
+                continue;
             Eigen::Vector2d mean_xy = it->second.xy / static_cast<double>(it->second.num);
             Eigen::Vector3d corner_point_in_plane = mean_xy.x() * it->second.norms.col(2) + mean_xy.y() * it->second.norms.col(1) + it->second.mean;
             p.x = corner_point_in_plane.x();

@@ -20,11 +20,28 @@ int main(int argc, char **argv)
     auto start = std::chrono::high_resolution_clock::now();
     std::shared_ptr<stdes::VoxelMap> voxel_map = std::make_shared<stdes::VoxelMap>(1.0, 0.01, 10);
     stdes::STDExtractor extractor(voxel_map);
-    extractor.nms_3d_range = 1.5;
+    extractor.nms_3d_range = 2.0;
     extractor.descriptor_near_num = 15;
+
     std::vector<stdes::STDDescriptor> descs;
     extractor.extract(cloud, 1, descs);
-    std::cout << descs.size() << std::endl;
+    int plane_count = 0;
+    int none_plane_count = 0;
+    for (auto it = voxel_map->voxels.begin(); it != voxel_map->voxels.end(); it++)
+    {
+        if (it->second->is_plane)
+        {
+            plane_count++;
+        }
+        else
+        {
+            none_plane_count++;
+        }
+    }
+
+    std::cout << "voxel size: " << voxel_map->voxels.size() << " plane : " << plane_count << " none_plane: " << none_plane_count << std::endl;
+
+    std::cout << "des size: " << descs.size() << std::endl;
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     std::cout << "Elapsed time: " << duration << " ms" << std::endl;

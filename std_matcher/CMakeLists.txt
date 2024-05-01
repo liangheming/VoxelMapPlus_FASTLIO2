@@ -43,6 +43,7 @@ include_directories(
 
 set(SRC_LIST src/std_manager/utils.cpp)
 set(STD_SRC_LIST src/std_manager/voxel_map.cpp)
+set(STD_ORI_SRC src/std_manager/STDesc.cpp)
 
 add_executable(temp_node src/temp_node.cpp ${SRC_LIST})
 target_link_libraries(temp_node
@@ -61,4 +62,12 @@ add_executable(stdesc_extractor src/stdesc_extractor.cpp  ${SRC_LIST} ${STD_SRC_
 target_link_libraries(stdesc_extractor
   ${catkin_LIBRARIES}
 )
+
+add_executable(std_test src/std_test.cpp  ${SRC_LIST} ${STD_ORI_SRC})
+
+target_link_libraries(std_test
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
+
 
