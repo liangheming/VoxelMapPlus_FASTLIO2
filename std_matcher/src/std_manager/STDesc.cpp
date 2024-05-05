@@ -785,9 +785,11 @@ void STDescManager::corner_extractor(
       }
     }
   }
-  // std::cout << "before nms: " << prepare_corner_points->size() << std::endl;
+  std::cout << "before nms: " << prepare_corner_points->size() << std::endl;
 
   non_maxi_suppression(prepare_corner_points);
+
+  std::cout << "after nms: " << prepare_corner_points->size() << std::endl;
   // 取前几个
   if (config_setting_.maximum_corner_num_ > prepare_corner_points->size())
   {
@@ -957,43 +959,49 @@ void STDescManager::extract_corner(
     img_count_array[x_index][y_index]++;
     img_container[x_index][y_index].push_back(point_list_2d[i]);
   }
+
+  /**
+   * 计算梯度
+  */
+
   // calc gradient 计算个数的梯度 但是后面又没有用，这段代码有什么用
-  for (int x = 0; x < x_axis_len; x++)
-  {
-    for (int y = 0; y < y_axis_len; y++)
-    {
-      double gradient = 0;
-      int cnt = 0;
-      int inc = 1;
-      for (int x_inc = -inc; x_inc <= inc; x_inc++)
-      {
-        for (int y_inc = -inc; y_inc <= inc; y_inc++)
-        {
-          int xx = x + x_inc;
-          int yy = y + y_inc;
-          if (xx >= 0 && xx < x_axis_len && yy >= 0 && yy < y_axis_len)
-          {
-            if (xx != x || yy != y)
-            {
-              if (img_count_array[xx][yy] >= 0)
-              {
-                gradient += img_count_array[x][y] - img_count_array[xx][yy];
-                cnt++;
-              }
-            }
-          }
-        }
-      }
-      if (cnt != 0)
-      {
-        gradient_array[x][y] = gradient * 1.0 / cnt;
-      }
-      else
-      {
-        gradient_array[x][y] = 0;
-      }
-    }
-  }
+  // for (int x = 0; x < x_axis_len; x++)
+  // {
+  //   for (int y = 0; y < y_axis_len; y++)
+  //   {
+  //     double gradient = 0;
+  //     int cnt = 0;
+  //     int inc = 1;
+  //     for (int x_inc = -inc; x_inc <= inc; x_inc++)
+  //     {
+  //       for (int y_inc = -inc; y_inc <= inc; y_inc++)
+  //       {
+  //         int xx = x + x_inc;
+  //         int yy = y + y_inc;
+  //         if (xx >= 0 && xx < x_axis_len && yy >= 0 && yy < y_axis_len)
+  //         {
+  //           if (xx != x || yy != y)
+  //           {
+  //             if (img_count_array[xx][yy] >= 0)
+  //             {
+  //               gradient += img_count_array[x][y] - img_count_array[xx][yy];
+  //               cnt++;
+  //             }
+  //           }
+  //         }
+  //       }
+  //     }
+  //     if (cnt != 0)
+  //     {
+  //       gradient_array[x][y] = gradient * 1.0 / cnt;
+  //     }
+  //     else
+  //     {
+  //       gradient_array[x][y] = 0;
+  //     }
+  //   }
+  // }
+
   // extract corner by gradient
   // 还进行两层分割，不清楚意义在哪里
   std::vector<int> max_gradient_vec;

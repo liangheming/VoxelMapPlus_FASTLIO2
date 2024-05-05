@@ -269,10 +269,9 @@ namespace stdes
         {
             *prepare_key_cloud += *projectCornerNMS(plane);
         }
-
+        std::cout << "before nms 3d: " << prepare_key_cloud->size() << std::endl;
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr candidates = nms3D(prepare_key_cloud);
-
-        std::cout << "corner size: " << candidates->size() << std::endl;
+        std::cout << "after nms 3d: " << candidates->size() << std::endl;
 
         if (candidates->points.size() > max_corner_num)
         {
