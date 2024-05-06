@@ -678,7 +678,8 @@ void STDescManager::corner_extractor(
     // 遍历所有非平面节点，这类节点可能会邻接一个平面节点
     if (!iter->second->plane_ptr_->is_plane_)
     {
-
+      std::cout << "================" << std::endl;
+      std::cout << iter->first.x << " : " << iter->first.y << " : " << iter->first.z << std::endl;
       VOXEL_LOC current_position = iter->first;
       OctoTree *current_octo = iter->second;
       int connect_index = -1;
@@ -773,7 +774,9 @@ void STDescManager::corner_extractor(
             // here do the 2D projection and corner extraction
             pcl::PointCloud<pcl::PointXYZINormal>::Ptr sub_corner_points(
                 new pcl::PointCloud<pcl::PointXYZINormal>);
-            // std::cout << "before nms2d: " << proj_points.size() << std::endl;
+
+            if (proj_points.size())
+              std::cout << "before nms2d: " << proj_points.size() << std::endl;
             extract_corner(projection_center, projection_normal, proj_points,
                            sub_corner_points);
             for (auto pi : sub_corner_points->points)
@@ -785,11 +788,11 @@ void STDescManager::corner_extractor(
       }
     }
   }
-  std::cout << "before nms: " << prepare_corner_points->size() << std::endl;
+  // std::cout << "before nms: " << prepare_corner_points->size() << std::endl;
 
   non_maxi_suppression(prepare_corner_points);
 
-  std::cout << "after nms: " << prepare_corner_points->size() << std::endl;
+  // std::cout << "after nms: " << prepare_corner_points->size() << std::endl;
   // 取前几个
   if (config_setting_.maximum_corner_num_ > prepare_corner_points->size())
   {
@@ -962,7 +965,7 @@ void STDescManager::extract_corner(
 
   /**
    * 计算梯度
-  */
+   */
 
   // calc gradient 计算个数的梯度 但是后面又没有用，这段代码有什么用
   // for (int x = 0; x < x_axis_len; x++)
