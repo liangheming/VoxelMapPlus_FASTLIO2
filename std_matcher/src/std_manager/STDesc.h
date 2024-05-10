@@ -296,13 +296,13 @@ public:
                        std::vector<STDesc> &stds_vec);
 
   // search result <candidate_id, plane icp score>. -1 for no loop
-  void SearchLoop(const std::vector<STDesc> &stds_vec,
+  void SearchLoop(std::vector<STDesc> &stds_vec,
                   std::pair<int, double> &loop_result,
                   std::pair<Eigen::Vector3d, Eigen::Matrix3d> &loop_transform,
                   std::vector<std::pair<STDesc, STDesc>> &loop_std_pair);
 
   // add descriptors to database
-  void AddSTDescs(const std::vector<STDesc> &stds_vec);
+  void AddSTDescs(std::vector<STDesc> &stds_vec);
 
   // Geometrical optimization by plane-to-plane ico
   // void PlaneGeomrtricIcp(
