@@ -92,6 +92,7 @@ public:
             ROS_INFO("ADD KEY FRAME DO SEARCH!");
             if (result.valid)
             {
+                // 这里得到是新旧世界坐标系下的差值 T_old_new;
                 ROS_WARN("FIND MATCHED LOOP! current_id: %lu, loop_id: %lu match_score: %.4f", feature.id, result.match_id, result.match_score);
                 std::cout << "before icp " << result.translation.transpose() << std::endl;
                 std::cout << result.rotation << std::endl;
