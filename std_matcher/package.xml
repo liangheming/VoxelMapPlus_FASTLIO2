@@ -17,6 +17,7 @@
   <exec_depend>std_msgs</exec_depend>
   <depend>pcl_ros</depend>
   <depend>interface</depend>
+  <depend>tf2_ros</depend>
   <export>
   </export>
 </package>

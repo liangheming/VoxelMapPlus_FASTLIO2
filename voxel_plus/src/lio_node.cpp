@@ -199,6 +199,8 @@ public:
 
     void publishCloudWithOdom(pcl::PointCloud<pcl::PointXYZINormal>::Ptr _cloud, std::string &_frame_id, std::string &_child_frame, double _timestamp)
     {
+         if (pointcloud_with_odom_pub.getNumSubscribers() < 1)
+            return;
         interface::PointCloudWithOdom msg;
         msg.header.stamp = ros::Time().fromSec(_timestamp);
         msg.header.frame_id = _frame_id;

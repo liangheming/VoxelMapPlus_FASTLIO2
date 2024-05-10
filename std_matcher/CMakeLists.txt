@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(std_matcher)
 
 add_compile_options(-std=c++14)
+add_compile_definitions(SOPHUS_USE_BASIC_LOGGING)
 
 set(CMAKE_CXX_FLAGS "-std=c++14 -O3" )
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions" )
@@ -17,11 +18,14 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   pcl_ros
   interface
+  tf2_ros
 )
 
 find_package(OpenMP QUIET)
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED)
+find_package(Sophus REQUIRED)
+
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}   ${OpenMP_C_FLAGS}")
@@ -38,36 +42,17 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
+  ${Sophus_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
 )
 
-set(SRC_LIST src/std_manager/utils.cpp)
-set(STD_SRC_LIST src/std_manager/voxel_map.cpp)
-set(STD_ORI_SRC src/std_manager/STDesc.cpp)
 
-add_executable(temp_node src/temp_node.cpp ${SRC_LIST})
-target_link_libraries(temp_node
+set(STD_LIST src/std_manager/descriptor.cpp)
+
+add_executable(pgo_node src/pgo_node.cpp  ${STD_LIST})
+
+target_link_libraries(pgo_node
   ${catkin_LIBRARIES}
-)
-
-add_executable(demo_node0 src/demo_node0.cpp  ${SRC_LIST} ${STD_SRC_LIST})
-
-target_link_libraries(demo_node0
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-)
-
-add_executable(stdesc_extractor src/stdesc_extractor.cpp  ${SRC_LIST} ${STD_SRC_LIST})
-
-target_link_libraries(stdesc_extractor
-  ${catkin_LIBRARIES}
-)
-
-add_executable(std_test src/std_test.cpp  ${SRC_LIST} ${STD_ORI_SRC})
-
-target_link_libraries(std_test
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
 )
 
 
