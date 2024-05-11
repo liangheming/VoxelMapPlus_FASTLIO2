@@ -18,6 +18,8 @@
   <depend>pcl_ros</depend>
   <depend>interface</depend>
   <depend>tf2_ros</depend>
+  <depend>gtsam</depend>
+  <depend>geometry_msgs</depend>
   <export>
   </export>
 </package>

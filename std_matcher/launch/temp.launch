@@ -3,7 +3,7 @@
         <rosparam command="load" file="$(find voxel_plus)/config/mapping.yaml" />
     </node>
     <node pkg="std_matcher" type="pgo_node" name="pgo_node" output="screen" />
-    <!-- <node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz"
-        args="-d $(find voxel_plus)/rviz/default.rviz" /> -->
+    <node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz"
+        args="-d $(find voxel_plus)/rviz/default.rviz" />
 
 </launch>

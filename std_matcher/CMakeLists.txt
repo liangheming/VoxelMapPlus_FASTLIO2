@@ -19,12 +19,16 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   interface
   tf2_ros
+  geometry_msgs
 )
 
 find_package(OpenMP QUIET)
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED)
 find_package(Sophus REQUIRED)
+find_package(GTSAM REQUIRED)
+
+
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
@@ -53,6 +57,7 @@ add_executable(pgo_node src/pgo_node.cpp  ${STD_LIST})
 
 target_link_libraries(pgo_node
   ${catkin_LIBRARIES}
+  gtsam
 )
 
 
