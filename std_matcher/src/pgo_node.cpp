@@ -75,11 +75,50 @@ class PGONode
 public:
     PGONode() : nh("~")
     {
+        loadParams();
         initSubScribers();
         initPublishers();
         initSAM();
         main_loop = nh.createTimer(ros::Duration(0.05), &PGONode::mainLoopCB, this);
         std_manager = std::make_shared<std_desc::STDManager>(std_config);
+    }
+
+    void loadParams()
+    {
+        nh.param<std::string>("map_frame", node_config.map_frame, "map");
+        nh.param<std::string>("odom_cloud_topic", node_config.odom_cloud_topic, "/lio_node/cloud_with_odom");
+        nh.param<double>("ds_size", node_config.ds_size, 0.25);
+        nh.param<int>("sub_frame_num", node_config.sub_frame_num, 10);
+
+        nh.param<double>("voxel_size", std_config.voxel_size, 1.0);
+        nh.param<int>("voxel_min_point", std_config.voxel_min_point, 10);
+        nh.param<double>("voxel_plane_thresh", std_config.voxel_plane_thresh, 0.01);
+        nh.param<double>("norm_merge_thresh", std_config.norm_merge_thresh, 0.1);
+
+        nh.param<double>("proj_2d_resolution", std_config.proj_2d_resolution, 0.25);
+        nh.param<double>("proj_min_dis", std_config.proj_min_dis, 0.0001);
+        nh.param<double>("proj_max_dis", std_config.proj_max_dis, 5.0);
+
+
+        nh.param<int>("nms_2d_range", std_config.nms_2d_range, 5);
+        nh.param<double>("nms_3d_range", std_config.nms_3d_range, 2.0);
+        nh.param<double>("corner_thresh", std_config.corner_thresh, 10.0);
+        nh.param<int>("max_corner_num", std_config.max_corner_num, 100);
+        nh.param<double>("min_side_len", std_config.min_side_len, 2.0);
+        nh.param<double>("max_side_len", std_config.proj_max_dis, 30.0);
+
+        nh.param<int>("desc_search_range", std_config.desc_search_range, 15);
+
+        nh.param<double>("side_resolution", std_config.side_resolution, 0.2);
+        nh.param<double>("rough_dis_threshold", std_config.rough_dis_threshold, 0.03);
+        nh.param<int>("skip_near_num", std_config.skip_near_num, 50);
+        nh.param<int>("candidate_num", std_config.candidate_num, 50);
+        nh.param<double>("verify_dis_thresh", std_config.verify_dis_thresh, 3.0);
+        nh.param<double>("geo_verify_dis_thresh", std_config.geo_verify_dis_thresh, 0.3);
+        nh.param<double>("icp_thresh", std_config.icp_thresh, 0.5);
+
+        nh.param<double>("iter_eps", std_config.iter_eps, 0.001);
+        // nh.param<size_t>("max_iter", std_config.max_iter, 10);
     }
 
     void initSAM()
@@ -335,7 +374,7 @@ public:
         publishPath(path_pub, data_group.origin_pose_vec);
 
         publishPath(correct_path_pub, data_group.pose_vec);
-        
+
         publishLoopConstraints();
 
         data_group.cloud_idx++;

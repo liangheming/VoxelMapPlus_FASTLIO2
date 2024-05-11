@@ -1,0 +1,33 @@
+map_frame: map
+ds_size: 0.25
+sub_frame_num: 10
+odom_cloud_topic: /lio_node/cloud_with_odom
+
+voxel_size: 1.0
+voxel_min_point: 10
+voxel_plane_thresh: 0.01
+norm_merge_thresh: 0.1
+
+proj_2d_resolution: 0.25
+proj_min_dis: 0.0001
+proj_max_dis: 5.0
+
+nms_2d_range: 5
+nms_3d_range: 2.0
+corner_thresh: 10.0
+max_corner_num: 100
+min_side_len: 2.0
+max_side_len: 30.0
+desc_search_range: 15
+
+side_resolution: 0.2
+rough_dis_threshold: 0.03
+skip_near_num: 50
+vertex_diff_threshold: 0.7
+candidate_num: 50
+verify_dis_thresh: 3.0
+geo_verify_dis_thresh: 0.3
+icp_thresh: 0.6
+
+iter_eps: 0.001
+max_iter: 10
