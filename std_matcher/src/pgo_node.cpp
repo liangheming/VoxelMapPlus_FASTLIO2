@@ -99,7 +99,6 @@ public:
         nh.param<double>("proj_min_dis", std_config.proj_min_dis, 0.0001);
         nh.param<double>("proj_max_dis", std_config.proj_max_dis, 5.0);
 
-
         nh.param<int>("nms_2d_range", std_config.nms_2d_range, 5);
         nh.param<double>("nms_3d_range", std_config.nms_3d_range, 2.0);
         nh.param<double>("corner_thresh", std_config.corner_thresh, 10.0);
@@ -294,6 +293,8 @@ public:
         if (data_group.cloud_idx % node_config.sub_frame_num == 0 && data_group.cloud_idx != 0)
         {
             std_desc::STDFeature feature = std_manager->extract(data_group.key_cloud);
+            
+            ROS_INFO("FEATRUE SIZE: %lu", feature.descs.size());
 
             std_desc::LoopResult result;
 
