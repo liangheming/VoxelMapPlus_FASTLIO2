@@ -14,6 +14,8 @@
 #include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 
 geometry_msgs::TransformStamped eigen2Transform(const Eigen::Matrix3d &rot, const Eigen::Vector3d &pos, const std::string &frame_id, const std::string &child_frame_id, const double &timestamp)
 {
@@ -99,7 +101,7 @@ public:
         odom_cloud_sub = nh.subscribe(node_config.odom_cloud_topic, 100, &PGONode::odomCloudCB, this);
     }
 
-    void publishPath(ros::Publisher pub, std::vector<Eigen::Affine3d> &pose_list)
+    void publishPath(ros::Publisher &pub, std::vector<Eigen::Affine3d> &pose_list)
     {
         if (pub.getNumSubscribers() < 1)
             return;
@@ -124,10 +126,68 @@ public:
         pub.publish(path);
     }
 
+    void publishLoopConstraints()
+    {
+        if (loop_contraints_pub.getNumSubscribers() < 1)
+            return;
+        if (data_group.loop_container.size() == 0)
+            return;
+        visualization_msgs::MarkerArray marker_array;
+        visualization_msgs::Marker marker_node;
+        marker_node.header.frame_id = node_config.map_frame;
+        marker_node.action = visualization_msgs::Marker::ADD;
+        marker_node.type = visualization_msgs::Marker::SPHERE_LIST;
+        marker_node.ns = "loop_nodes";
+        marker_node.id = 0;
+        marker_node.pose.orientation.w = 1;
+        marker_node.scale.x = 0.3;
+        marker_node.scale.y = 0.3;
+        marker_node.scale.z = 0.3;
+        marker_node.color.r = 0;
+        marker_node.color.g = 0.8;
+        marker_node.color.b = 1;
+        marker_node.color.a = 1;
+
+        visualization_msgs::Marker marker_edge;
+        marker_edge.header.frame_id = node_config.map_frame;
+        marker_edge.action = visualization_msgs::Marker::ADD;
+        marker_edge.type = visualization_msgs::Marker::LINE_LIST;
+        marker_edge.ns = "loop_edges";
+        marker_edge.id = 1;
+        marker_edge.pose.orientation.w = 1;
+        marker_edge.scale.x = 0.1;
+        marker_edge.color.r = 0.9;
+        marker_edge.color.g = 0.9;
+        marker_edge.color.b = 0;
+        marker_edge.color.a = 1;
+
+        for (auto it = data_group.loop_container.begin(); it != data_group.loop_container.end(); ++it)
+        {
+            int key_cur = it->first;
+            int key_pre = it->second;
+            geometry_msgs::Point p;
+            p.x = data_group.pose_vec[key_cur * node_config.sub_frame_num].translation().x();
+            p.y = data_group.pose_vec[key_cur * node_config.sub_frame_num].translation().y();
+            p.z = data_group.pose_vec[key_cur * node_config.sub_frame_num].translation().z();
+            marker_node.points.push_back(p);
+            marker_edge.points.push_back(p);
+            p.x = data_group.pose_vec[key_pre * node_config.sub_frame_num].translation().x();
+            p.y = data_group.pose_vec[key_pre * node_config.sub_frame_num].translation().y();
+            p.z = data_group.pose_vec[key_pre * node_config.sub_frame_num].translation().z();
+            marker_node.points.push_back(p);
+            marker_edge.points.push_back(p);
+        }
+
+        marker_array.markers.push_back(marker_node);
+        marker_array.markers.push_back(marker_edge);
+        loop_contraints_pub.publish(marker_array);
+    }
+
     void initPublishers()
     {
         path_pub = nh.advertise<nav_msgs::Path>("origin_path", 10000);
         correct_path_pub = nh.advertise<nav_msgs::Path>("correct_path", 10000);
+        loop_contraints_pub = nh.advertise<visualization_msgs::MarkerArray>("loop_contriants", 10);
     }
 
     void odomCloudCB(const interface::PointCloudWithOdom::ConstPtr msg)
@@ -273,8 +333,10 @@ public:
         br.sendTransform(eigen2Transform(frame_delta_pose.linear(), frame_delta_pose.translation(), node_config.map_frame, node_config.local_frame, data_group.current_time));
 
         publishPath(path_pub, data_group.origin_pose_vec);
-        
+
         publishPath(correct_path_pub, data_group.pose_vec);
+        
+        publishLoopConstraints();
 
         data_group.cloud_idx++;
 
@@ -293,6 +355,7 @@ public:
 
     ros::Publisher correct_path_pub;
     ros::Publisher path_pub;
+    ros::Publisher loop_contraints_pub;
 };
 
 int main(int argc, char **argv)

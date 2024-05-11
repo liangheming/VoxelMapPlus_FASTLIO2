@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   interface
   tf2_ros
   geometry_msgs
+  visualization_msgs
 )
 
 find_package(OpenMP QUIET)

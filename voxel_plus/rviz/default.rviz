@@ -12,6 +12,7 @@ Panels:
         - /Axes2
         - /Path1
         - /Path2
+        - /MarkerArray2
       Splitter Ratio: 0.5
     Tree Height: 1106
   - Class: rviz/Selection
@@ -187,11 +188,19 @@ Visualization Manager:
       Topic: /pgo_node/origin_path
       Unreliable: false
       Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /pgo_node/loop_contriants
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: lidar
+    Fixed Frame: map
     Frame Rate: 30
   Name: root
   Tools:
@@ -215,7 +224,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 24.931922912597656
+      Distance: 26.822172164916992
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -223,17 +232,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -5.717419624328613
-        Y: -4.9040374755859375
-        Z: -0.0024334341287612915
+        X: -1.748833179473877
+        Y: -2.5274746417999268
+        Z: -0.0024343878030776978
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7897971868515015
+      Pitch: 1.5697963237762451
       Target Frame: body
-      Yaw: 3.850388765335083
+      Yaw: 3.705387592315674
     Saved: ~
 Window Geometry:
   Displays:

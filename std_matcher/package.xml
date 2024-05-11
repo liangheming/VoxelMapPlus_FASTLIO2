@@ -20,6 +20,7 @@
   <depend>tf2_ros</depend>
   <depend>gtsam</depend>
   <depend>geometry_msgs</depend>
+  <depend>visualization_msgs</depend>
   <export>
   </export>
 </package>
