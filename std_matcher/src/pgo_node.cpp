@@ -1,4 +1,5 @@
 #include <queue>
+#include <chrono>
 #include <ros/ros.h>
 #include "std_manager/descriptor.h"
 #include "interface/PointCloudWithOdom.h"
@@ -11,6 +12,9 @@
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <nav_msgs/Path.h>
+#include <geometry_msgs/PoseStamped.h>
+
 
 geometry_msgs::TransformStamped eigen2Transform(const Eigen::Matrix3d &rot, const Eigen::Vector3d &pos, const std::string &frame_id, const std::string &child_frame_id, const double &timestamp)
 {
@@ -170,14 +174,12 @@ public:
             std_manager->insert(feature);
             if (result.valid)
             {
+
                 // 这里得到是新旧世界坐标系下的差值 T_old_new;
                 ROS_WARN("FIND MATCHED LOOP! current_id: %lu, loop_id: %lu match_score: %.4f", feature.id, result.match_id, result.match_score);
-
                 double score = std_manager->verifyGeoPlaneICP(feature.cloud, std_manager->cloud_vec[result.match_id], result.rotation, result.translation);
-                // std::cout << "after icp " << result.translation.transpose() << std::endl;
-                // std::cout << result.rotation << std::endl;
-                // std::cout << "res sum " << score << std::endl;
                 data_group.has_loop_flag = true;
+                data_group.loop_container.emplace_back(result.match_id, feature.id);
                 // 10 20
                 for (size_t j = 1; j <= node_config.sub_frame_num; j++)
                 {
@@ -231,8 +233,9 @@ public:
         Eigen::Affine3d last_pose = data_group.pose_vec.back();
 
         Eigen::Affine3d frame_delta_pose = last_pose * data_group.origin_pose_vec.back().inverse();
-        
+
         br.sendTransform(eigen2Transform(frame_delta_pose.linear(), frame_delta_pose.translation(), node_config.map_frame, node_config.local_frame, data_group.current_time));
+
         data_group.cloud_idx++;
 
         data_group.has_loop_flag = false;
