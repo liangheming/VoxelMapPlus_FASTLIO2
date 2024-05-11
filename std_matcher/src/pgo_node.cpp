@@ -15,7 +15,6 @@
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/PoseStamped.h>
 
-
 geometry_msgs::TransformStamped eigen2Transform(const Eigen::Matrix3d &rot, const Eigen::Vector3d &pos, const std::string &frame_id, const std::string &child_frame_id, const double &timestamp)
 {
     geometry_msgs::TransformStamped transform;
@@ -75,6 +74,7 @@ public:
     PGONode() : nh("~")
     {
         initSubScribers();
+        initPublishers();
         initSAM();
         main_loop = nh.createTimer(ros::Duration(0.05), &PGONode::mainLoopCB, this);
         std_manager = std::make_shared<std_desc::STDManager>(std_config);
@@ -97,6 +97,37 @@ public:
     void initSubScribers()
     {
         odom_cloud_sub = nh.subscribe(node_config.odom_cloud_topic, 100, &PGONode::odomCloudCB, this);
+    }
+
+    void publishPath(ros::Publisher pub, std::vector<Eigen::Affine3d> &pose_list)
+    {
+        if (pub.getNumSubscribers() < 1)
+            return;
+        nav_msgs::Path path;
+        for (int i = 0; i < pose_list.size(); i++)
+        {
+            geometry_msgs::PoseStamped msg_pose;
+            msg_pose.pose.position.x = pose_list[i].translation()[0];
+            msg_pose.pose.position.y = pose_list[i].translation()[1];
+            msg_pose.pose.position.z = pose_list[i].translation()[2];
+            Eigen::Quaterniond pose_q(pose_list[i].rotation());
+            msg_pose.header.frame_id = node_config.map_frame;
+            msg_pose.pose.orientation.x = pose_q.x();
+            msg_pose.pose.orientation.y = pose_q.y();
+            msg_pose.pose.orientation.z = pose_q.z();
+            msg_pose.pose.orientation.w = pose_q.w();
+            path.poses.push_back(msg_pose);
+        }
+
+        path.header.stamp = ros::Time().fromSec(data_group.current_time);
+        path.header.frame_id = node_config.map_frame;
+        pub.publish(path);
+    }
+
+    void initPublishers()
+    {
+        path_pub = nh.advertise<nav_msgs::Path>("origin_path", 10000);
+        correct_path_pub = nh.advertise<nav_msgs::Path>("correct_path", 10000);
     }
 
     void odomCloudCB(const interface::PointCloudWithOdom::ConstPtr msg)
@@ -166,9 +197,14 @@ public:
             std_desc::STDFeature feature = std_manager->extract(data_group.key_cloud);
 
             std_desc::LoopResult result;
+
+            int64_t duration;
             if (data_group.cloud_idx > std_config.skip_near_num)
             {
+                auto start = std::chrono::high_resolution_clock::now();
                 result = std_manager->searchLoop(feature);
+                auto end = std::chrono::high_resolution_clock::now();
+                duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
             }
 
             std_manager->insert(feature);
@@ -176,7 +212,7 @@ public:
             {
 
                 // 这里得到是新旧世界坐标系下的差值 T_old_new;
-                ROS_WARN("FIND MATCHED LOOP! current_id: %lu, loop_id: %lu match_score: %.4f", feature.id, result.match_id, result.match_score);
+                ROS_WARN("FIND MATCHED LOOP! CURRENT_ID: %lu, LOOP_ID: %lu MATCH SCORE: %.4f, TIME COST: %lu ms", feature.id, result.match_id, result.match_score, duration);
                 double score = std_manager->verifyGeoPlaneICP(feature.cloud, std_manager->cloud_vec[result.match_id], result.rotation, result.translation);
                 data_group.has_loop_flag = true;
                 data_group.loop_container.emplace_back(result.match_id, feature.id);
@@ -236,6 +272,10 @@ public:
 
         br.sendTransform(eigen2Transform(frame_delta_pose.linear(), frame_delta_pose.translation(), node_config.map_frame, node_config.local_frame, data_group.current_time));
 
+        publishPath(path_pub, data_group.origin_pose_vec);
+        
+        publishPath(correct_path_pub, data_group.pose_vec);
+
         data_group.cloud_idx++;
 
         data_group.has_loop_flag = false;
@@ -250,6 +290,9 @@ public:
     DataGroup data_group;
     std_desc::Config std_config;
     std::shared_ptr<std_desc::STDManager> std_manager;
+
+    ros::Publisher correct_path_pub;
+    ros::Publisher path_pub;
 };
 
 int main(int argc, char **argv)

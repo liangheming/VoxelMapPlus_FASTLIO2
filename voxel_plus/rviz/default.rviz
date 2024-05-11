@@ -10,6 +10,8 @@ Panels:
         - /PointCloud22
         - /Axes1
         - /Axes2
+        - /Path1
+        - /Path2
       Splitter Ratio: 0.5
     Tree Height: 1106
   - Class: rviz/Selection
@@ -123,19 +125,67 @@ Visualization Manager:
     - Alpha: 1
       Class: rviz/Axes
       Enabled: true
-      Length: 1
+      Length: 0.5
       Name: Axes
-      Radius: 0.10000000149011612
+      Radius: 0.05000000074505806
       Reference Frame: body
       Show Trail: false
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /lio_node/voxel_map
       Name: MarkerArray
       Namespaces:
-        plane: true
+        {}
       Queue Size: 100
+      Value: false
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 239; 41; 41
+      Enabled: true
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Lines
+      Line Width: 0.029999999329447746
+      Name: Path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Queue Size: 10
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic: /pgo_node/correct_path
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 25; 255; 0
+      Enabled: true
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Lines
+      Line Width: 0.029999999329447746
+      Name: Path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Queue Size: 10
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic: /pgo_node/origin_path
+      Unreliable: false
       Value: true
   Enabled: true
   Global Options:
@@ -165,7 +215,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 15.735193252563477
+      Distance: 24.931922912597656
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -173,17 +223,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.5362626314163208
-        Y: 3.5260705947875977
-        Z: -0.0024296194314956665
+        X: -5.717419624328613
+        Y: -4.9040374755859375
+        Z: -0.0024334341287612915
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.0453979969024658
+      Pitch: 0.7897971868515015
       Target Frame: body
-      Yaw: 2.5453977584838867
+      Yaw: 3.850388765335083
     Saved: ~
 Window Geometry:
   Displays:
