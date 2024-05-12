@@ -159,8 +159,7 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
 
   ConfigSetting config_setting;
-  // read_parameters(nh, config_setting);
-
+  read_parameters(nh, config_setting);
   // ros::Publisher pubOdomAftMapped =
   // nh.advertise<nav_msgs::Odometry>("/aft_mapped_to_init", 10);
   ros::Publisher pubCurrentCloud =
@@ -252,7 +251,7 @@ int main(int argc, char **argv)
       auto origin_estimate_affine3d = pose;
       pcl::transformPointCloud(*current_cloud_body, *current_cloud_world, pose);
       // 均值化
-      down_sampling_voxel(*current_cloud_world, config_setting.ds_size_);
+      // down_sampling_voxel(*current_cloud_world, config_setting.ds_size_);
       // down sample body cloud
       down_sampling_voxel(*current_cloud_body, 0.5);
       cloud_vec.push_back(current_cloud_body);
@@ -302,6 +301,12 @@ int main(int argc, char **argv)
       {
         // ROS_INFO("key frame idx: [%d], key cloud size: [%d]", (int)keyCloudInd, (int)key_cloud->size());
         // step1. Descriptor Extraction
+
+        // if (cloudInd == 660)
+        // {
+        //   pcl::PCDWriter writer;
+        //   writer.write("/home/zhouzhou/temp/660_raw.pcd", *key_cloud);
+        // }
         std::vector<STDesc> stds_vec;
         std_manager->GenerateSTDescs(key_cloud, stds_vec);
 
@@ -313,7 +318,7 @@ int main(int argc, char **argv)
         loop_transform.second = Eigen::Matrix3d::Identity();
         std::vector<std::pair<STDesc, STDesc>> loop_std_pair;
 
-        if (keyCloudInd > config_setting.skip_near_num_)
+        if (cloudInd > config_setting.skip_near_num_)
         {
           std_manager->SearchLoop(stds_vec, search_result, loop_transform,
                                   loop_std_pair);

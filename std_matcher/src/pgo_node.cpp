@@ -48,11 +48,11 @@ struct DataGroup
 {
     std::mutex buffer_mutex;
     std::queue<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloud_buffer;
-    std::queue<std::pair<Eigen::Matrix3d, Eigen::Vector3d>> pose_buffer;
+    std::queue<Eigen::Affine3d> pose_buffer;
     std::queue<double> time_buffer;
 
     double current_time;
-    std::pair<Eigen::Matrix3d, Eigen::Vector3d> current_pose;
+    Eigen::Affine3d current_pose;
     pcl::PointCloud<pcl::PointXYZI>::Ptr current_cloud;
     pcl::PointCloud<pcl::PointXYZI>::Ptr key_cloud;
 
@@ -112,6 +112,7 @@ public:
         nh.param<double>("rough_dis_threshold", std_config.rough_dis_threshold, 0.03);
         nh.param<int>("skip_near_num", std_config.skip_near_num, 50);
         nh.param<int>("candidate_num", std_config.candidate_num, 50);
+        nh.param<double>("vertex_diff_threshold", std_config.vertex_diff_threshold, 0.7);
         nh.param<double>("verify_dis_thresh", std_config.verify_dis_thresh, 3.0);
         nh.param<double>("geo_verify_dis_thresh", std_config.geo_verify_dis_thresh, 0.3);
         nh.param<double>("icp_thresh", std_config.icp_thresh, 0.5);
@@ -239,7 +240,10 @@ public:
                                     msg->pose.pose.orientation.y,
                                     msg->pose.pose.orientation.z);
         Eigen::Vector3d translation(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
-        data_group.pose_buffer.emplace(rotation.toRotationMatrix(), translation);
+        Eigen::Affine3d pose = Eigen::Affine3d::Identity();
+        pose.linear() = rotation.toRotationMatrix();
+        pose.translation() = translation;
+        data_group.pose_buffer.push(pose);
         data_group.time_buffer.push(msg->header.stamp.toSec());
     }
 
@@ -259,19 +263,17 @@ public:
                 data_group.time_buffer.pop();
             }
         }
-        pcl::transformPointCloud(*data_group.current_cloud,
-                                 *data_group.current_cloud,
-                                 data_group.current_pose.second.cast<float>(),
-                                 Eigen::Quaternionf(data_group.current_pose.first.cast<float>()));
+        pcl::transformPointCloud(*data_group.current_cloud, *data_group.current_cloud, data_group.current_pose);
 
-        std_desc::voxelFilter(data_group.current_cloud, node_config.ds_size);
+        // std_desc::voxelFilter(data_group.current_cloud, node_config.ds_size);
+
         if (data_group.key_cloud == nullptr)
             data_group.key_cloud.reset(new pcl::PointCloud<pcl::PointXYZI>);
         *data_group.key_cloud += *data_group.current_cloud;
 
-        Eigen::Affine3d pose = Eigen::Affine3d::Identity();
-        pose.linear() = data_group.current_pose.first;
-        pose.translation() = data_group.current_pose.second;
+        Eigen::Affine3d pose = data_group.current_pose;
+        // pose.linear() = data_group.current_pose.first;
+        // pose.translation() = data_group.current_pose.second;
         data_group.initial.insert(data_group.cloud_idx, gtsam::Pose3(pose.matrix()));
         if (!data_group.cloud_idx)
         {
@@ -290,7 +292,11 @@ public:
 
         if (data_group.cloud_idx % node_config.sub_frame_num == 0 && data_group.cloud_idx != 0)
         {
-            
+            // if (data_group.cloud_idx == 660)
+            // {
+            //     pcl::PCDWriter writer;
+            //     writer.write("/home/zhouzhou/temp/660_new.pcd", *data_group.key_cloud);
+            // }
             std_desc::STDFeature feature = std_manager->extract(data_group.key_cloud);
             ROS_INFO("ID: %lu  FEATRUE SIZE: %lu CLOUD SIZE: %lu", data_group.cloud_idx, feature.descs.size(), data_group.key_cloud->size());
             std_desc::LoopResult result;
