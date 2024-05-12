@@ -2,7 +2,7 @@
 
 namespace std_desc
 {
-    void voxelFilter(pcl::PointCloud<pcl::PointXYZINormal>::Ptr in, double voxel_size)
+    void voxelFilter(pcl::PointCloud<pcl::PointXYZI>::Ptr in, double voxel_size)
     {
         std::unordered_map<VoxelKey, MPoint, VoxelKey::Hasher> voxels;
         for (auto p : in->points)
@@ -20,9 +20,21 @@ namespace std_desc
             voxels[k].count += 1;
         }
         in->clear();
-        for (auto it = voxels.begin(); it != voxels.end(); it++)
+        std::vector<VoxelKey> keys;
+        for (auto iter = voxels.begin(); iter != voxels.end(); iter++)
         {
-            pcl::PointXYZINormal p;
+            keys.push_back(iter->first);
+        }
+        std::sort(keys.begin(), keys.end(), [](VoxelKey &k1, VoxelKey &k2)
+                  {
+            std::string ks1 =  std::to_string(k1.x) + std::to_string(k1.y)+std::to_string(k1.z);
+            std::string ks2 =  std::to_string(k2.x) + std::to_string(k2.y)+std::to_string(k2.z);
+            return ks1 > ks2; });
+        // for (auto it = voxels.begin(); it != voxels.end(); it++)
+        for (VoxelKey &ck_ : keys)
+        {
+            auto it = voxels.find(ck_);
+            pcl::PointXYZI p;
             p.x = it->second.xyzi(0) / static_cast<double>(it->second.count);
             p.y = it->second.xyzi(1) / static_cast<double>(it->second.count);
             p.z = it->second.xyzi(2) / static_cast<double>(it->second.count);
@@ -67,14 +79,14 @@ namespace std_desc
 
     uint64_t STDManager::frame_count = 0;
 
-    void STDManager::buildVoxels(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud)
+    void STDManager::buildVoxels(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud)
     {
         for (auto &p : cloud->points)
         {
             VoxelKey k = VoxelKey::index(p.x, p.y, p.z, config.voxel_size);
             if (temp_voxels.find(k) == temp_voxels.end())
             {
-                temp_voxels[k].cloud.reset(new pcl::PointCloud<pcl::PointXYZINormal>);
+                temp_voxels[k].cloud.reset(new pcl::PointCloud<pcl::PointXYZI>);
                 temp_voxels[k].is_plane = false;
                 temp_voxels[k].is_valid = false;
                 temp_voxels[k].lamdas.setZero();
@@ -193,8 +205,10 @@ namespace std_desc
 
     pcl::PointCloud<pcl::PointXYZINormal>::Ptr STDManager::nms2d(const Eigen::Vector3d &mean, const Eigen::Vector3d &norm, std::vector<Eigen::Vector3d> &proj_points)
     {
+        // std::cout << mean.transpose() << ":" << norm.transpose() << std::endl;
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr ret(new pcl::PointCloud<pcl::PointXYZINormal>);
         Eigen::Vector3d x_axis(1, 1, 0);
+
         double A = norm(0), B = norm(1), C = norm(2);
         if (C != 0)
             x_axis[2] = -(A + B) / C;
@@ -253,6 +267,7 @@ namespace std_desc
 
         for (size_t i = 0; i < point_list_2d.size(); i++)
         {
+
             int x_index = (int)((point_list_2d[i][0] - min_x) / config.proj_2d_resolution);
             int y_index = (int)((point_list_2d[i][1] - min_y) / config.proj_2d_resolution);
             mean_x_array[x_index][y_index] += point_list_2d[i][0];
@@ -391,12 +406,15 @@ namespace std_desc
                 if (proj_points.size() == 0)
                     continue;
                 pcl::PointCloud<pcl::PointXYZINormal>::Ptr corners = nms2d(projection_center, projection_normal, proj_points);
+
                 prepare_corner_points->points.insert(prepare_corner_points->points.begin(), corners->points.begin(), corners->points.end());
             }
         }
 
         if (prepare_corner_points->size() > 0)
             nms3d(prepare_corner_points);
+        if (prepare_corner_points->size() > 0)
+            // std::cout << "after nms3d: " << prepare_corner_points->size() << std::endl;
 
         if (prepare_corner_points->size() > config.max_corner_num)
         {
@@ -415,6 +433,8 @@ namespace std_desc
         kd_tree.setInputCloud(prepare_key_cloud);
         std::vector<int> pointIdxRadiusSearch;
         std::vector<float> pointRadiusSquaredDistance;
+        // std::cout << "nms: " << prepare_key_cloud->size() << " range: " << config.nms_3d_range << std::endl;
+
         for (size_t i = 0; i < prepare_key_cloud->size(); i++)
         {
             pcl::PointXYZINormal searchPoint = prepare_key_cloud->points[i];
@@ -529,7 +549,7 @@ namespace std_desc
         return ret;
     }
 
-    STDFeature STDManager::extract(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud)
+    STDFeature STDManager::extract(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud)
     {
         std::unordered_map<VoxelKey, VoxelNode, VoxelKey::Hasher>().swap(temp_voxels);
 

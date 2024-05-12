@@ -28,6 +28,8 @@ find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED)
 find_package(Sophus REQUIRED)
 find_package(GTSAM REQUIRED)
+find_package(Ceres REQUIRED)
+
 
 
 
@@ -60,5 +62,25 @@ target_link_libraries(pgo_node
   ${catkin_LIBRARIES}
   gtsam
 )
+
+
+add_executable(online_demo src/online_demo.cpp  src/std_manager/STDesc.cpp)
+target_link_libraries(online_demo
+  ${catkin_LIBRARIES}
+  ${CERES_LIBRARIES}
+  gtsam
+)
+
+add_executable(std_new src/std_new.cpp  src/std_manager/descriptor.cpp)
+target_link_libraries(std_new
+  ${catkin_LIBRARIES}
+)
+
+add_executable(std_raw src/std_raw.cpp  src/std_manager/STDesc.cpp)
+target_link_libraries(std_raw
+  ${catkin_LIBRARIES}
+  ${CERES_LIBRARIES}
+)
+
 
 

@@ -9,7 +9,7 @@ voxel_plane_thresh: 0.01
 norm_merge_thresh: 0.1
 
 proj_2d_resolution: 0.25
-proj_min_dis: 0.0001
+proj_min_dis: 0.0
 proj_max_dis: 5.0
 
 nms_2d_range: 5

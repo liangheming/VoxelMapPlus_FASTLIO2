@@ -47,14 +47,14 @@ struct Config
 struct DataGroup
 {
     std::mutex buffer_mutex;
-    std::deque<pcl::PointCloud<pcl::PointXYZINormal>::Ptr> cloud_buffer;
-    std::deque<std::pair<Eigen::Matrix3d, Eigen::Vector3d>> pose_buffer;
-    std::deque<double> time_buffer;
+    std::queue<pcl::PointCloud<pcl::PointXYZI>::Ptr> cloud_buffer;
+    std::queue<std::pair<Eigen::Matrix3d, Eigen::Vector3d>> pose_buffer;
+    std::queue<double> time_buffer;
 
     double current_time;
     std::pair<Eigen::Matrix3d, Eigen::Vector3d> current_pose;
-    pcl::PointCloud<pcl::PointXYZINormal>::Ptr current_cloud;
-    pcl::PointCloud<pcl::PointXYZINormal>::Ptr key_cloud;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr current_cloud;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr key_cloud;
 
     size_t cloud_idx = 0;
     std::vector<Eigen::Affine3d> pose_vec;
@@ -117,7 +117,6 @@ public:
         nh.param<double>("icp_thresh", std_config.icp_thresh, 0.5);
 
         nh.param<double>("iter_eps", std_config.iter_eps, 0.001);
-        // nh.param<size_t>("max_iter", std_config.max_iter, 10);
     }
 
     void initSAM()
@@ -231,17 +230,17 @@ public:
     void odomCloudCB(const interface::PointCloudWithOdom::ConstPtr msg)
     {
         std::lock_guard<std::mutex> lock(data_group.buffer_mutex);
-        pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZINormal>);
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
         pcl::fromROSMsg(msg->cloud, *cloud);
         node_config.local_frame = msg->header.frame_id;
-        data_group.cloud_buffer.push_back(cloud);
+        data_group.cloud_buffer.push(cloud);
         Eigen::Quaterniond rotation(msg->pose.pose.orientation.w,
                                     msg->pose.pose.orientation.x,
                                     msg->pose.pose.orientation.y,
                                     msg->pose.pose.orientation.z);
         Eigen::Vector3d translation(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
-        data_group.pose_buffer.emplace_back(rotation.toRotationMatrix(), translation);
-        data_group.time_buffer.push_back(msg->header.stamp.toSec());
+        data_group.pose_buffer.emplace(rotation.toRotationMatrix(), translation);
+        data_group.time_buffer.push(msg->header.stamp.toSec());
     }
 
     void mainLoopCB(const ros::TimerEvent &e)
@@ -255,9 +254,9 @@ public:
             data_group.current_time = data_group.time_buffer.front();
             while (!data_group.cloud_buffer.empty())
             {
-                data_group.cloud_buffer.pop_front();
-                data_group.pose_buffer.pop_front();
-                data_group.time_buffer.pop_front();
+                data_group.cloud_buffer.pop();
+                data_group.pose_buffer.pop();
+                data_group.time_buffer.pop();
             }
         }
         pcl::transformPointCloud(*data_group.current_cloud,
@@ -267,7 +266,7 @@ public:
 
         std_desc::voxelFilter(data_group.current_cloud, node_config.ds_size);
         if (data_group.key_cloud == nullptr)
-            data_group.key_cloud.reset(new pcl::PointCloud<pcl::PointXYZINormal>);
+            data_group.key_cloud.reset(new pcl::PointCloud<pcl::PointXYZI>);
         *data_group.key_cloud += *data_group.current_cloud;
 
         Eigen::Affine3d pose = Eigen::Affine3d::Identity();
@@ -276,7 +275,6 @@ public:
         data_group.initial.insert(data_group.cloud_idx, gtsam::Pose3(pose.matrix()));
         if (!data_group.cloud_idx)
         {
-
             data_group.graph.add(gtsam::PriorFactor<gtsam::Pose3>(0, gtsam::Pose3(pose.matrix()), data_group.odometryNoise));
         }
         else
@@ -292,10 +290,9 @@ public:
 
         if (data_group.cloud_idx % node_config.sub_frame_num == 0 && data_group.cloud_idx != 0)
         {
-            std_desc::STDFeature feature = std_manager->extract(data_group.key_cloud);
             
-            ROS_INFO("FEATRUE SIZE: %lu", feature.descs.size());
-
+            std_desc::STDFeature feature = std_manager->extract(data_group.key_cloud);
+            ROS_INFO("ID: %lu  FEATRUE SIZE: %lu CLOUD SIZE: %lu", data_group.cloud_idx, feature.descs.size(), data_group.key_cloud->size());
             std_desc::LoopResult result;
 
             int64_t duration;

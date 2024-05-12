@@ -189,7 +189,7 @@ public:
             return;
         voxel_map_pub.publish(voxel2MarkerArray(voxel_map, config.map_frame, ros::Time::now().toSec(), config.publish_voxel_num, voxel_map->voxel_size * 0.8));
     }
-    
+
     void publishCloud(ros::Publisher &pub, pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud, std::string &frame_id, const double &time)
     {
         if (pub.getNumSubscribers() < 1)
@@ -199,12 +199,23 @@ public:
 
     void publishCloudWithOdom(pcl::PointCloud<pcl::PointXYZINormal>::Ptr _cloud, std::string &_frame_id, std::string &_child_frame, double _timestamp)
     {
-         if (pointcloud_with_odom_pub.getNumSubscribers() < 1)
+        pcl::PointCloud<pcl::PointXYZI>::Ptr pub_cloud(new pcl::PointCloud<pcl::PointXYZI>);
+        pcl::copyPointCloud(*_cloud, *pub_cloud);
+
+        if (pointcloud_with_odom_pub.getNumSubscribers() < 1)
             return;
+        sensor_msgs::PointCloud2 cloud_msg;
+        pcl::toROSMsg(*pub_cloud, cloud_msg);
+        if (_timestamp < 0)
+            cloud_msg.header.stamp = ros::Time().now();
+        else
+            cloud_msg.header.stamp = ros::Time().fromSec(_timestamp);
+        cloud_msg.header.frame_id = _child_frame;
+        
         interface::PointCloudWithOdom msg;
         msg.header.stamp = ros::Time().fromSec(_timestamp);
         msg.header.frame_id = _frame_id;
-        msg.cloud = pcl2msg(_cloud, _child_frame, _timestamp);
+        msg.cloud = cloud_msg;
         msg.pose.pose.position.x = state.pos.x();
         msg.pose.pose.position.y = state.pos.y();
         msg.pose.pose.position.z = state.pos.z();

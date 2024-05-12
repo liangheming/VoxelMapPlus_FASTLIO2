@@ -18,10 +18,10 @@ namespace std_desc
     struct MPoint
     {
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-        Eigen::Vector4d xyzi;
+        Eigen::Vector4f xyzi;
         int count;
     };
-    void voxelFilter(pcl::PointCloud<pcl::PointXYZINormal>::Ptr in, double voxel_size);
+    void voxelFilter(pcl::PointCloud<pcl::PointXYZI>::Ptr in, double voxel_size);
 
     Eigen::Matrix3d skew(const Eigen::Vector3d &vec);
 
@@ -58,7 +58,7 @@ namespace std_desc
         double norm_merge_thresh = 0.1;
 
         double proj_2d_resolution = 0.25;
-        double proj_min_dis = 0.0001;
+        double proj_min_dis = 0.0;
         double proj_max_dis = 5.0;
 
         int nms_2d_range = 5;
@@ -92,7 +92,7 @@ namespace std_desc
         Eigen::Matrix3d norms;
         Eigen::Vector3d lamdas;
 
-        pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud;
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cloud;
         bool is_plane = false;
         bool is_valid = false;
         bool is_projected = false;
@@ -143,9 +143,9 @@ namespace std_desc
     public:
         STDManager(Config &_config) : config(_config) {}
 
-        STDFeature extract(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud);
+        STDFeature extract(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud);
 
-        void buildVoxels(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud);
+        void buildVoxels(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud);
 
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr extractCorners();
 
