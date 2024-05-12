@@ -265,7 +265,7 @@ public:
         }
         pcl::transformPointCloud(*data_group.current_cloud, *data_group.current_cloud, data_group.current_pose);
 
-        // std_desc::voxelFilter(data_group.current_cloud, node_config.ds_size);
+        std_desc::voxelFilter(data_group.current_cloud, node_config.ds_size);
 
         if (data_group.key_cloud == nullptr)
             data_group.key_cloud.reset(new pcl::PointCloud<pcl::PointXYZI>);

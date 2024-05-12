@@ -251,7 +251,7 @@ int main(int argc, char **argv)
       auto origin_estimate_affine3d = pose;
       pcl::transformPointCloud(*current_cloud_body, *current_cloud_world, pose);
       // 均值化
-      // down_sampling_voxel(*current_cloud_world, config_setting.ds_size_);
+      down_sampling_voxel(*current_cloud_world, config_setting.ds_size_);
       // down sample body cloud
       down_sampling_voxel(*current_cloud_body, 0.5);
       cloud_vec.push_back(current_cloud_body);
