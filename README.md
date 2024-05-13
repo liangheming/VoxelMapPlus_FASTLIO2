@@ -1,4 +1,4 @@
-# FastLIO2 With VoxelMapPlus AND STD
+# FastLIO2 With VoxelMapPlus And STD
 ![image](https://github.com/liangheming/VoxelMapPlus_FASTLIO2/blob/main/resources/demo.png)
 
 ## 主要工作
