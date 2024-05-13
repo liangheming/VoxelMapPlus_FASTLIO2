@@ -1,6 +1,0 @@
-icp_threshold: 0.6
-rough_dis_threshold: 0.03
-normal_threshold: 0.1
-voxel_size: 1.0
-dis_threshold: 0.3
-vertex_diff_threshold: 0.7

@@ -20,20 +20,8 @@ namespace std_desc
             voxels[k].count += 1;
         }
         in->clear();
-        std::vector<VoxelKey> keys;
-        for (auto iter = voxels.begin(); iter != voxels.end(); iter++)
+        for (auto it = voxels.begin(); it != voxels.end(); it++)
         {
-            keys.push_back(iter->first);
-        }
-        std::sort(keys.begin(), keys.end(), [](VoxelKey &k1, VoxelKey &k2)
-                  {
-            std::string ks1 =  std::to_string(k1.x) + std::to_string(k1.y)+std::to_string(k1.z);
-            std::string ks2 =  std::to_string(k2.x) + std::to_string(k2.y)+std::to_string(k2.z);
-            return ks1 > ks2; });
-        // for (auto it = voxels.begin(); it != voxels.end(); it++)
-        for (VoxelKey &ck_ : keys)
-        {
-            auto it = voxels.find(ck_);
             pcl::PointXYZI p;
             p.x = it->second.xyzi(0) / static_cast<double>(it->second.count);
             p.y = it->second.xyzi(1) / static_cast<double>(it->second.count);
@@ -205,7 +193,6 @@ namespace std_desc
 
     pcl::PointCloud<pcl::PointXYZINormal>::Ptr STDManager::nms2d(const Eigen::Vector3d &mean, const Eigen::Vector3d &norm, std::vector<Eigen::Vector3d> &proj_points)
     {
-        // std::cout << mean.transpose() << ":" << norm.transpose() << std::endl;
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr ret(new pcl::PointCloud<pcl::PointXYZINormal>);
         Eigen::Vector3d x_axis(1, 1, 0);
 
@@ -329,24 +316,24 @@ namespace std_desc
 
     pcl::PointCloud<pcl::PointXYZINormal>::Ptr STDManager::extractCorners()
     {
-        std::vector<VoxelKey> keys;
-        for (auto iter = temp_voxels.begin(); iter != temp_voxels.end(); iter++)
-        {
-            keys.push_back(iter->first);
-        }
-        std::sort(keys.begin(), keys.end(), [](VoxelKey &k1, VoxelKey &k2)
-                  {
-            std::string ks1 =  std::to_string(k1.x) + std::to_string(k1.y)+std::to_string(k1.z);
-            std::string ks2 =  std::to_string(k2.x) + std::to_string(k2.y)+std::to_string(k2.z);
-            return ks1 > ks2; });
+        // std::vector<VoxelKey> keys;
+        // for (auto iter = temp_voxels.begin(); iter != temp_voxels.end(); iter++)
+        // {
+        //     keys.push_back(iter->first);
+        // }
+        // std::sort(keys.begin(), keys.end(), [](VoxelKey &k1, VoxelKey &k2)
+        //           {
+        //     std::string ks1 =  std::to_string(k1.x) + std::to_string(k1.y)+std::to_string(k1.z);
+        //     std::string ks2 =  std::to_string(k2.x) + std::to_string(k2.y)+std::to_string(k2.z);
+        //     return ks1 > ks2; });
         // TODO: 遍历的一致性约束
 
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr prepare_corner_points(new pcl::PointCloud<pcl::PointXYZINormal>);
 
-        // for (auto iter = connect_voxels.begin(); iter != connect_voxels.end(); iter++)
-        for (VoxelKey &ck_ : keys)
+        for (auto iter = temp_voxels.begin(); iter != temp_voxels.end(); iter++)
+        // for (VoxelKey &ck_ : keys)
         {
-            auto iter = temp_voxels.find(ck_);
+            // auto iter = temp_voxels.find(ck_);
             if (iter->second.is_plane)
                 continue;
 
@@ -433,7 +420,6 @@ namespace std_desc
         kd_tree.setInputCloud(prepare_key_cloud);
         std::vector<int> pointIdxRadiusSearch;
         std::vector<float> pointRadiusSquaredDistance;
-        // std::cout << "nms: " << prepare_key_cloud->size() << " range: " << config.nms_3d_range << std::endl;
 
         for (size_t i = 0; i < prepare_key_cloud->size(); i++)
         {
