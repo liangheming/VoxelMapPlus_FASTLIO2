@@ -20,20 +20,20 @@ namespace std_desc
             voxels[k].count += 1;
         }
         in->clear();
-        // std::vector<VoxelKey> keys;
-        // for (auto iter = voxels.begin(); iter != voxels.end(); iter++)
-        // {
-        //     keys.push_back(iter->first);
-        // }
-        // std::sort(keys.begin(), keys.end(), [](VoxelKey &k1, VoxelKey &k2)
-        //           {
-        //     std::string ks1 =  std::to_string(k1.x) + std::to_string(k1.y)+std::to_string(k1.z);
-        //     std::string ks2 =  std::to_string(k2.x) + std::to_string(k2.y)+std::to_string(k2.z);
-        //     return ks1 > ks2; });
-        for (auto it = voxels.begin(); it != voxels.end(); it++)
-        // for (VoxelKey &ck_ : keys)
+        std::vector<VoxelKey> keys;
+        for (auto iter = voxels.begin(); iter != voxels.end(); iter++)
         {
-            // auto it = voxels.find(ck_);
+            keys.push_back(iter->first);
+        }
+        std::sort(keys.begin(), keys.end(), [](VoxelKey &k1, VoxelKey &k2)
+                  {
+            std::string ks1 =  std::to_string(k1.x) + std::to_string(k1.y)+std::to_string(k1.z);
+            std::string ks2 =  std::to_string(k2.x) + std::to_string(k2.y)+std::to_string(k2.z);
+            return ks1 > ks2; });
+        // for (auto it = voxels.begin(); it != voxels.end(); it++)
+        for (VoxelKey &ck_ : keys)
+        {
+            auto it = voxels.find(ck_);
             pcl::PointXYZI p;
             p.x = it->second.xyzi(0) / static_cast<double>(it->second.count);
             p.y = it->second.xyzi(1) / static_cast<double>(it->second.count);

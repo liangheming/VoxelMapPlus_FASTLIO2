@@ -50,21 +50,21 @@ void down_sampling_voxel(pcl::PointCloud<pcl::PointXYZI> &pl_feat,
   pl_feat.resize(plsize);
 
   uint i = 0;
-  // std::vector<VOXEL_LOC> keys;
-  // for (auto iter = voxel_map.begin(); iter != voxel_map.end(); iter++)
-  // {
-  //   keys.push_back(iter->first);
-  // }
-  // std::sort(keys.begin(), keys.end(), [](VOXEL_LOC &k1, VOXEL_LOC &k2)
-  //           {
-  //           std::string ks1 =  std::to_string(k1.x) + std::to_string(k1.y)+std::to_string(k1.z);
-  //           std::string ks2 =  std::to_string(k2.x) + std::to_string(k2.y)+std::to_string(k2.z);
-  //           return ks1 > ks2; });
-  
-  for (auto iter = voxel_map.begin(); iter != voxel_map.end(); ++iter)
-  // for (VOXEL_LOC &ck_ : keys)
+  std::vector<VOXEL_LOC> keys;
+  for (auto iter = voxel_map.begin(); iter != voxel_map.end(); iter++)
   {
-    // auto iter = voxel_map.find(ck_);
+    keys.push_back(iter->first);
+  }
+  std::sort(keys.begin(), keys.end(), [](VOXEL_LOC &k1, VOXEL_LOC &k2)
+            {
+            std::string ks1 =  std::to_string(k1.x) + std::to_string(k1.y)+std::to_string(k1.z);
+            std::string ks2 =  std::to_string(k2.x) + std::to_string(k2.y)+std::to_string(k2.z);
+            return ks1 > ks2; });
+  
+  // for (auto iter = voxel_map.begin(); iter != voxel_map.end(); ++iter)
+  for (VOXEL_LOC &ck_ : keys)
+  {
+    auto iter = voxel_map.find(ck_);
     pl_feat[i].x = iter->second.xyz[0] / iter->second.count;
     pl_feat[i].y = iter->second.xyz[1] / iter->second.count;
     pl_feat[i].z = iter->second.xyz[2] / iter->second.count;
